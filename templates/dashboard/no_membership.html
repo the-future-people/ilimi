@@ -56,6 +56,12 @@
             transition: background 0.2s;
         }
         .btn:hover { background: #2e4a72; }
+
+        button.btn {
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+}
     </style>
 </head>
 <body>
@@ -68,7 +74,10 @@
         </div>
         <h1>No School Found</h1>
         <p>Your account isn't linked to any school yet. Please contact your school administrator or register a new school.</p>
-        <a href="{% url 'accounts:logout' %}" class="btn">Sign Out</a>
+        <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn">Sign Out</button>
+        </form>
     </div>
 </body>
 </html>

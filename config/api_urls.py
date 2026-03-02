@@ -9,4 +9,5 @@ urlpatterns = [
     path("v1/schools/", include("apps.tenants.api.v1.urls", namespace="tenants-v1")),
     path("v1/academics/", include("apps.academics.api.v1.urls")),
     path("v1/students/", include("apps.students.api.v1.urls")),
+    path("v1/staff/", include("apps.teachers.api.v1.urls")),
 ]

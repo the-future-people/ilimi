@@ -1,0 +1,265 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Staff — Step 4 · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+        .back-btn:hover { background: rgba(255,255,255,0.15); }
+        .back-btn svg { width: 16px; height: 16px; }
+        .breadcrumb { max-width: 900px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .wizard-wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 60px; }
+        .progress-block { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .progress-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .progress-counter { font-size: 12px; color: #aaa; font-weight: 600; }
+        .steps-row { display: flex; gap: 6px; }
+        .step-pip { flex: 1; height: 5px; border-radius: 10px; background: #eee; }
+        .step-pip.done { background: var(--gold); }
+        .step-pip.active { background: var(--navy); }
+        .steps-labels { display: flex; margin-top: 10px; }
+        .step-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; text-align: center; }
+        .step-label.active { color: var(--navy); }
+        .step-label.done { color: var(--gold); }
+        .form-card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .form-card-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+        .form-card-title svg { width: 20px; height: 20px; color: var(--gold); }
+        .form-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-full { grid-column: 1 / -1; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field label .req { color: #e53e3e; margin-left: 2px; }
+        .field input, .field select { padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s, background 0.2s; }
+        .field input:focus, .field select:focus { border-color: var(--navy); background: #fff; }
+        .field .errorlist { list-style: none; margin: 0; padding: 0; }
+        .field .errorlist li { font-size: 11px; color: #e53e3e; font-weight: 500; }
+        .field .hint { font-size: 11px; color: #aaa; }
+        .section-divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 8px 0; }
+        .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; }
+
+        /* QUALIFICATION CARDS */
+        .qual-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .qual-option { position: relative; }
+        .qual-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .qual-option label { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 1.5px solid #e8e8e8; border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center; background: #fafafa; gap: 6px; }
+        .qual-option label .q-icon { font-size: 18px; }
+        .qual-option label .q-label { font-size: 11px; font-weight: 700; color: var(--navy); line-height: 1.3; }
+        .qual-option input[type="radio"]:checked + label { border-color: var(--navy); background: rgba(26,41,70,0.04); }
+
+        /* SUBJECT SPECIALIZATIONS */
+        .subjects-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .subject-option { position: relative; }
+        .subject-option input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .subject-option label { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #fafafa; font-size: 13px; font-weight: 500; color: var(--navy); }
+        .subject-option label::before { content: ''; width: 16px; height: 16px; border: 2px solid #ddd; border-radius: 4px; flex-shrink: 0; transition: all 0.15s; }
+        .subject-option input[type="checkbox"]:checked + label { border-color: var(--navy); background: rgba(26,41,70,0.04); }
+        .subject-option input[type="checkbox"]:checked + label::before { background: var(--navy); border-color: var(--navy); }
+        .no-subjects { grid-column: 1 / -1; text-align: center; padding: 24px; color: #bbb; font-size: 13px; background: #fafafa; border-radius: 10px; border: 1.5px dashed #e8e8e8; }
+
+        .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 24px; border-top: 1px solid #f0f0f0; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: transparent; border: 1.5px solid #e0e0e0; border-radius: 10px; color: #666; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: var(--navy); color: var(--navy); }
+        .btn-next { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--navy); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-next:hover { background: var(--navy-light); }
+        .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+        @media (max-width: 768px) { .qual-grid { grid-template-columns: repeat(3, 1fr); } .subjects-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .qual-grid { grid-template-columns: repeat(2, 1fr); } .subjects-grid { grid-template-columns: 1fr 1fr; } .brand-text { display: none; } .wizard-wrap { padding: 16px 16px 40px; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <a href="{% url 'dashboard:staff_list' %}" class="back-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Cancel Registration
+        </a>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'dashboard:staff_list' %}">Teachers & Staff</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Register New Staff</span>
+</div>
+
+<div class="wizard-wrap">
+    <div class="progress-block">
+        <div class="progress-header">
+            <div class="progress-title">Register New Staff Member</div>
+            <div class="progress-counter">Step 4 of 6</div>
+        </div>
+        <div class="steps-row">
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip active"></div>
+            <div class="step-pip"></div>
+            <div class="step-pip"></div>
+        </div>
+        <div class="steps-labels">
+            <span class="step-label done">Personal</span>
+            <span class="step-label done">Contact</span>
+            <span class="step-label done">Employment</span>
+            <span class="step-label active">Qualifications</span>
+            <span class="step-label">Documents</span>
+            <span class="step-label">Next of Kin</span>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- QUALIFICATIONS -->
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+                Academic Qualifications
+            </div>
+            <div class="form-card-subtitle">Highest qualification and teaching experience.</div>
+
+            <div class="form-grid">
+                <div class="section-label">Highest Qualification</div>
+
+                <div class="qual-grid">
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_none" value=""
+                            {% if not form.highest_qualification.value %}checked{% endif %}>
+                        <label for="q_none"><span class="q-icon">—</span><span class="q-label">Not Set</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_wassce" value="wassce"
+                            {% if form.highest_qualification.value == 'wassce' %}checked{% endif %}>
+                        <label for="q_wassce"><span class="q-icon">📝</span><span class="q-label">WASSCE</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_diploma" value="diploma"
+                            {% if form.highest_qualification.value == 'diploma' %}checked{% endif %}>
+                        <label for="q_diploma"><span class="q-icon">📜</span><span class="q-label">Diploma</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_bachelors" value="bachelors"
+                            {% if form.highest_qualification.value == 'bachelors' %}checked{% endif %}>
+                        <label for="q_bachelors"><span class="q-icon">🎓</span><span class="q-label">Bachelor's</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_pgde" value="pgde"
+                            {% if form.highest_qualification.value == 'pgde' %}checked{% endif %}>
+                        <label for="q_pgde"><span class="q-icon">🏫</span><span class="q-label">PGDE</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_masters" value="masters"
+                            {% if form.highest_qualification.value == 'masters' %}checked{% endif %}>
+                        <label for="q_masters"><span class="q-icon">🎖️</span><span class="q-label">Master's</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_phd" value="phd"
+                            {% if form.highest_qualification.value == 'phd' %}checked{% endif %}>
+                        <label for="q_phd"><span class="q-icon">🔬</span><span class="q-label">PhD</span></label>
+                    </div>
+                    <div class="qual-option">
+                        <input type="radio" name="highest_qualification" id="q_other" value="other"
+                            {% if form.highest_qualification.value == 'other' %}checked{% endif %}>
+                        <label for="q_other"><span class="q-icon">📚</span><span class="q-label">Other</span></label>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="field">
+                    <label>Institution Attended</label>
+                    <input type="text" name="institution_attended"
+                        value="{{ form.institution_attended.value|default:'' }}"
+                        placeholder="e.g. University of Education, Winneba">
+                </div>
+
+                <div class="field">
+                    <label>Years of Experience</label>
+                    <input type="number" name="years_of_experience"
+                        value="{{ form.years_of_experience.value|default:'0' }}"
+                        min="0" placeholder="0">
+                </div>
+
+                <div class="field form-full">
+                    <label>NTC License Number</label>
+                    <input type="text" name="ntc_license_number"
+                        value="{{ form.ntc_license_number.value|default:'' }}"
+                        placeholder="e.g. NTC-2019-00123">
+                    <span class="hint">National Teaching Council license — required for certified teachers.</span>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- SUBJECT SPECIALIZATIONS -->
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                Subject Specializations
+            </div>
+            <div class="form-card-subtitle">Which subjects is this staff member qualified to teach? Select all that apply.</div>
+
+            <div class="form-grid">
+                {% with subjects=form.subject_specializations.field.queryset %}
+                {% if subjects %}
+                <div class="subjects-grid">
+                    {% for subject in subjects %}
+                    <div class="subject-option">
+                        <input type="checkbox"
+                            name="subject_specializations"
+                            id="subj_{{ subject.id }}"
+                            value="{{ subject.id }}"
+                            {% if subject.id|stringformat:"s" in form.subject_specializations.value|default:'' %}checked{% endif %}>
+                        <label for="subj_{{ subject.id }}">{{ subject.name }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="no-subjects">
+                    No subjects have been set up for this school yet. You can assign specializations later from the staff profile.
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'dashboard:staff_register_step3' %}" class="btn-back">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back
+                </a>
+                <button type="submit" class="btn-next">
+                    Next: Documents & Banking
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+            </div>
+        </div>
+
+    </form>
+</div>
+</body>
+</html>

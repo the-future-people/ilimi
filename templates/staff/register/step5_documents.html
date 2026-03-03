@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Staff — Step 5 · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+        .back-btn:hover { background: rgba(255,255,255,0.15); }
+        .back-btn svg { width: 16px; height: 16px; }
+        .breadcrumb { max-width: 900px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .wizard-wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 60px; }
+        .progress-block { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .progress-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .progress-counter { font-size: 12px; color: #aaa; font-weight: 600; }
+        .steps-row { display: flex; gap: 6px; }
+        .step-pip { flex: 1; height: 5px; border-radius: 10px; background: #eee; }
+        .step-pip.done { background: var(--gold); }
+        .step-pip.active { background: var(--navy); }
+        .steps-labels { display: flex; margin-top: 10px; }
+        .step-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; text-align: center; }
+        .step-label.active { color: var(--navy); }
+        .step-label.done { color: var(--gold); }
+        .form-card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .form-card-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+        .form-card-title svg { width: 20px; height: 20px; color: var(--gold); }
+        .form-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-full { grid-column: 1 / -1; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field input, .field select { padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s, background 0.2s; }
+        .field input:focus, .field select:focus { border-color: var(--navy); background: #fff; }
+        .field .errorlist { list-style: none; margin: 0; padding: 0; }
+        .field .errorlist li { font-size: 11px; color: #e53e3e; font-weight: 500; }
+        .field .hint { font-size: 11px; color: #aaa; }
+        .section-divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 8px 0; }
+        .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; }
+        .info-banner { grid-column: 1 / -1; background: rgba(26,41,70,0.04); border: 1px solid rgba(26,41,70,0.1); border-radius: 12px; padding: 14px 18px; display: flex; align-items: flex-start; gap: 12px; }
+        .info-banner svg { width: 18px; height: 18px; color: var(--navy); flex-shrink: 0; margin-top: 1px; }
+        .info-banner p { font-size: 12px; color: #666; line-height: 1.6; }
+
+        /* BANK SELECTOR */
+        .bank-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .bank-option { position: relative; }
+        .bank-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .bank-option label { display: flex; align-items: center; justify-content: center; padding: 10px 8px; border: 1.5px solid #e8e8e8; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #fafafa; font-size: 11px; font-weight: 600; color: var(--navy); text-align: center; line-height: 1.3; min-height: 44px; }
+        .bank-option label:hover { border-color: var(--navy); }
+        .bank-option input[type="radio"]:checked + label { border-color: var(--navy); background: var(--navy); color: #fff; }
+
+        .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 24px; border-top: 1px solid #f0f0f0; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: transparent; border: 1.5px solid #e0e0e0; border-radius: 10px; color: #666; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: var(--navy); color: var(--navy); }
+        .btn-next { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--navy); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-next:hover { background: var(--navy-light); }
+        .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+        @media (max-width: 768px) { .bank-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .bank-grid { grid-template-columns: repeat(2, 1fr); } .brand-text { display: none; } .wizard-wrap { padding: 16px 16px 40px; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <a href="{% url 'dashboard:staff_list' %}" class="back-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Cancel Registration
+        </a>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'dashboard:staff_list' %}">Teachers & Staff</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Register New Staff</span>
+</div>
+
+<div class="wizard-wrap">
+    <div class="progress-block">
+        <div class="progress-header">
+            <div class="progress-title">Register New Staff Member</div>
+            <div class="progress-counter">Step 5 of 6</div>
+        </div>
+        <div class="steps-row">
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip active"></div>
+            <div class="step-pip"></div>
+        </div>
+        <div class="steps-labels">
+            <span class="step-label done">Personal</span>
+            <span class="step-label done">Contact</span>
+            <span class="step-label done">Employment</span>
+            <span class="step-label done">Qualifications</span>
+            <span class="step-label active">Documents</span>
+            <span class="step-label">Next of Kin</span>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- OFFICIAL DOCUMENTS -->
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+                Official Documents
+            </div>
+            <div class="form-card-subtitle">Government-issued ID numbers for payroll and official records.</div>
+
+            <div class="form-grid">
+                <div class="info-banner">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p>These fields are optional but strongly recommended. Ghana Card and SSNIT numbers are required for GES payroll and pension contributions. Each number must be unique within this school.</p>
+                </div>
+
+                <div class="field">
+                    <label>Ghana Card Number</label>
+                    <input type="text" name="ghana_card_number"
+                        value="{{ form.ghana_card_number.value|default:'' }}"
+                        placeholder="e.g. GHA-000123456-7">
+                    {% if form.ghana_card_number.errors %}<ul class="errorlist">{% for e in form.ghana_card_number.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>SSNIT Number</label>
+                    <input type="text" name="ssnit_number"
+                        value="{{ form.ssnit_number.value|default:'' }}"
+                        placeholder="e.g. C000123456789">
+                    {% if form.ssnit_number.errors %}<ul class="errorlist">{% for e in form.ssnit_number.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                    <span class="hint">Social Security and National Insurance Trust number.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANKING -->
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                Banking & Payment Details
+            </div>
+            <div class="form-card-subtitle">Salary payment information. All fields are optional.</div>
+
+            <div class="form-grid">
+                <div class="section-label">Select Bank</div>
+
+                <div class="bank-grid">
+                    <div class="bank-option">
+                        <input type="radio" name="bank_name" id="bank_none" value=""
+                            {% if not form.bank_name.value %}checked{% endif %}>
+                        <label for="bank_none">No Bank</label>
+                    </div>
+                    {% for val, label in form.bank_name.field.choices %}
+                    {% if val %}
+                    <div class="bank-option">
+                        <input type="radio" name="bank_name" id="bank_{{ val }}" value="{{ val }}"
+                            {% if form.bank_name.value == val %}checked{% endif %}>
+                        <label for="bank_{{ val }}">{{ label }}</label>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="field">
+                    <label>Bank Branch</label>
+                    <input type="text" name="bank_branch"
+                        value="{{ form.bank_branch.value|default:'' }}"
+                        placeholder="e.g. Accra Main, Kumasi">
+                </div>
+
+                <div class="field">
+                    <label>Account Number</label>
+                    <input type="text" name="bank_account_number"
+                        value="{{ form.bank_account_number.value|default:'' }}"
+                        placeholder="e.g. 1234567890">
+                </div>
+
+                <div class="field">
+                    <label>MoMo Number</label>
+                    <input type="tel" name="momo_number"
+                        value="{{ form.momo_number.value|default:'' }}"
+                        placeholder="e.g. 0244123456">
+                    <span class="hint">Mobile Money number for salary or allowance payments.</span>
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'dashboard:staff_register_step4' %}" class="btn-back">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back
+                </a>
+                <button type="submit" class="btn-next">
+                    Next: Next of Kin
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+            </div>
+        </div>
+
+    </form>
+</div>
+</body>
+</html>

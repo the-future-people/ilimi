@@ -1,0 +1,332 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachers & Staff — {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-menu { position: relative; }
+        .user-trigger { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; padding: 6px 12px 6px 6px; cursor: pointer; transition: background 0.2s; }
+        .user-trigger:hover { background: rgba(255,255,255,0.15); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--gold); color: var(--navy); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+        .user-info .uname { font-size: 13px; font-weight: 600; color: #fff; line-height: 1; }
+        .user-info .urole { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+        .chevron { width: 14px; height: 14px; color: rgba(255,255,255,0.5); transition: transform 0.2s; }
+        .user-menu.open .chevron { transform: rotate(180deg); }
+        .dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 200px; background: #fff; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); padding: 8px; display: none; z-index: 200; }
+        .user-menu.open .dropdown { display: block; }
+        .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--navy); font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.15s; width: 100%; border: none; background: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+        .dropdown-item:hover { background: #f4f5f7; }
+        .dropdown-item.danger { color: #e53e3e; }
+        .dropdown-item.danger:hover { background: #fff5f5; }
+        .dropdown-divider { height: 1px; background: #f0f0f0; margin: 6px 0; }
+        .breadcrumb { max-width: 1280px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .page { max-width: 1280px; margin: 0 auto; padding: 24px 24px 48px; }
+        .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
+        .page-header-left h1 { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--navy); }
+        .page-header-left p { font-size: 13px; color: #888; margin-top: 4px; }
+        .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--navy); color: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-primary:hover { background: var(--navy-light); }
+        .btn-primary svg { width: 16px; height: 16px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+        .stat-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 14px; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-icon svg { width: 20px; height: 20px; }
+        .icon-green { background: rgba(21,128,61,0.1); color: #15803d; }
+        .icon-blue { background: rgba(30,64,175,0.1); color: #1e40af; }
+        .icon-gold { background: rgba(232,160,33,0.12); color: #b45309; }
+        .icon-purple { background: rgba(126,34,206,0.1); color: #7e22ce; }
+        .stat-value { font-size: 24px; font-weight: 700; color: var(--navy); line-height: 1; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 3px; }
+        .filters-bar { background: #fff; border-radius: 14px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .search-box { position: relative; flex: 1; min-width: 200px; }
+        .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #aaa; }
+        .search-box input { width: 100%; padding: 9px 12px 9px 36px; border: 1.5px solid #e8e8e8; border-radius: 9px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border 0.2s; background: #fafafa; }
+        .search-box input:focus { border-color: var(--navy); background: #fff; }
+        .filter-select { padding: 9px 14px; border: 1.5px solid #e8e8e8; border-radius: 9px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; cursor: pointer; }
+        .filter-select:focus { border-color: var(--navy); background: #fff; }
+        .btn-filter { padding: 9px 18px; background: var(--navy); color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-filter:hover { background: var(--navy-light); }
+        .btn-clear { padding: 9px 14px; background: transparent; color: #999; border: 1.5px solid #e8e8e8; border-radius: 9px; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: none; }
+        .btn-clear:hover { border-color: #ccc; color: #666; }
+        .table-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+        .table-header { padding: 18px 24px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+        .table-title { font-size: 14px; font-weight: 700; color: var(--navy); }
+        .table-count { font-size: 12px; color: #999; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { padding: 12px 20px; text-align: left; font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; background: #fafafa; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+        tbody tr { transition: background 0.15s; border-bottom: 1px solid #f8f8f8; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #fafbff; }
+        tbody td { padding: 14px 20px; font-size: 13px; color: #444; vertical-align: middle; }
+        .staff-cell { display: flex; align-items: center; gap: 12px; }
+        .staff-avatar { width: 36px; height: 36px; border-radius: 10px; background: #15803d; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+        .staff-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .staff-name { font-size: 13px; font-weight: 600; color: var(--navy); line-height: 1.2; }
+        .staff-id { font-size: 11px; color: #aaa; margin-top: 2px; font-family: monospace; }
+        .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-active { background: rgba(21,128,61,0.1); color: #15803d; }
+        .badge-on_leave { background: rgba(232,160,33,0.12); color: #b45309; }
+        .badge-suspended { background: rgba(220,38,38,0.1); color: #dc2626; }
+        .badge-terminated { background: rgba(107,114,128,0.1); color: #6b7280; }
+        .badge-resigned { background: rgba(107,114,128,0.1); color: #6b7280; }
+        .badge-retired { background: rgba(30,64,175,0.1); color: #1e40af; }
+        .badge-deceased { background: rgba(0,0,0,0.06); color: #666; }
+        .type-badge { display: inline-flex; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: rgba(26,41,70,0.07); color: var(--navy); }
+        .action-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: transparent; border: 1.5px solid #e8e8e8; color: #888; text-decoration: none; transition: all 0.15s; }
+        .action-btn:hover { background: var(--navy); border-color: var(--navy); color: #fff; }
+        .action-btn svg { width: 14px; height: 14px; }
+        .empty-state { text-align: center; padding: 60px 24px; color: #bbb; }
+        .empty-state svg { width: 48px; height: 48px; margin: 0 auto 16px; display: block; color: #ddd; }
+        .empty-state h3 { font-size: 16px; font-weight: 600; color: #999; margin-bottom: 6px; }
+        .empty-state p { font-size: 13px; }
+        @media (max-width: 1024px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .brand-text, .user-info { display: none; } .page { padding: 16px 16px 40px; } .stats-row { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+{% if request.session.staff_success %}
+<div id="successToast" class="toast-wrap">
+    <div class="toast">
+        <div class="toast-icon">🎉</div>
+        <div class="toast-body">
+            <div class="toast-title">Registration Successful!</div>
+            <div class="toast-sub">{{ request.session.staff_success.name }} has been registered · <span class="toast-id">{{ request.session.staff_success.staff_id }}</span></div>
+        </div>
+        <button class="toast-close" onclick="dismissToast()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+</div>
+
+<style>
+.toast-wrap { position: fixed; top: 24px; right: 24px; z-index: 9999; animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(120px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes slideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120px); } }
+.toast { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 16px; padding: 16px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04); min-width: 340px; max-width: 420px; border-left: 4px solid #15803d; }
+.toast-icon { font-size: 24px; flex-shrink: 0; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 14px; font-weight: 700; color: #1a2946; }
+.toast-sub { font-size: 12px; color: #888; margin-top: 3px; }
+.toast-id { font-family: monospace; font-weight: 700; color: #e8a021; }
+.toast-close { width: 28px; height: 28px; border-radius: 8px; border: none; background: #f5f5f5; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+.toast-close:hover { background: #eee; }
+.toast-close svg { width: 14px; height: 14px; color: #999; }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: #15803d; border-radius: 0 0 0 16px; animation: progress 4s linear forwards; }
+@keyframes progress { from { width: 100%; } to { width: 0%; } }
+</style>
+{% endif %}
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <div class="header-right">
+            <div class="user-menu" id="userMenu">
+                <button class="user-trigger" onclick="toggleMenu()">
+                    <div class="user-avatar">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+                    <div class="user-info">
+                        <div class="uname">{{ user.full_name }}</div>
+                        <div class="urole">{{ role_display }}</div>
+                    </div>
+                    <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="dropdown">
+                    <a href="{% url 'dashboard:admin_portal' %}" class="dropdown-item">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                        Dashboard
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <form method="POST" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item danger">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            Sign Out
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Teachers & Staff</span>
+</div>
+
+<div class="page">
+    <div class="page-header">
+        <div class="page-header-left">
+            <h1>Teachers & Staff</h1>
+            <p>{{ school.name }}{% if branch %} · {{ branch.name }}{% endif %} · {{ total_all }} staff member{{ total_all|pluralize }} on record</p>
+        </div>
+        <a href="{% url 'dashboard:staff_register_step1' %}" class="btn-primary">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Register New Staff
+        </a>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon icon-green">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div>
+                <div class="stat-value">{{ total_active }}</div>
+                <div class="stat-label">Active Staff</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon icon-blue">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <div class="stat-value">{{ total_all }}</div>
+                <div class="stat-label">Total Registered</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon icon-gold">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <div>
+                <div class="stat-value">{{ staff|length }}</div>
+                <div class="stat-label">Showing</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon icon-purple">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+                <div class="stat-value">{{ total_active }}</div>
+                <div class="stat-label">On Duty Today</div>
+            </div>
+        </div>
+    </div>
+
+    <form method="GET" class="filters-bar">
+        <div class="search-box">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" name="search" placeholder="Search by name, ID or phone…" value="{{ search }}">
+        </div>
+        <select name="status" class="filter-select">
+            <option value="">All Statuses</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="filter-select">
+            <option value="">All Types</option>
+            {% for val, label in type_choices %}
+            <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn-filter">Filter</button>
+        {% if search or status_filter or type_filter %}
+        <a href="{% url 'dashboard:staff_list' %}" class="btn-clear">Clear</a>
+        {% endif %}
+    </form>
+
+    <div class="table-card">
+        <div class="table-header">
+            <span class="table-title">Staff Records</span>
+            <span class="table-count">{{ staff|length }} result{{ staff|length|pluralize }}</span>
+        </div>
+        {% if staff %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Staff Member</th>
+                    <th>Phone</th>
+                    <th>Employment Type</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in staff %}
+                <tr>
+                    <td>
+                        <div class="staff-cell">
+                            <div class="staff-avatar">
+                                {% if member.photo %}
+                                <img src="{{ member.photo.url }}" alt="">
+                                {% else %}
+                                {{ member.first_name|first|upper }}{{ member.last_name|first|upper }}
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="staff-name">{{ member.full_name }}</div>
+                                <div class="staff-id">{{ member.staff_id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ member.phone }}</td>
+                    <td><span class="type-badge">{{ member.get_employment_type_display }}</span></td>
+                    <td>{{ member.date_joined_school|date:"d M Y"|default:"—" }}</td>
+                    <td><span class="badge badge-{{ member.status }}">{{ member.get_status_display }}</span></td>
+                    <td>
+                        <a href="{% url 'dashboard:staff_detail' member.pk %}" class="action-btn" title="View Profile">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <h3>No staff found</h3>
+            <p>{% if search or status_filter or type_filter %}Try adjusting your filters.{% else %}Get started by registering your first staff member.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleMenu() { document.getElementById('userMenu').classList.toggle('open'); }
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('userMenu');
+    if (menu && !menu.contains(e.target)) menu.classList.remove('open');
+});
+
+{% if request.session.staff_success %}
+// Clear session flag via fetch then auto-dismiss
+fetch('/dashboard/admin/staff/clear-toast/', {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}});
+const toastTimer = setTimeout(() => dismissToast(), 4500);
+function dismissToast() {
+    clearTimeout(toastTimer);
+    const wrap = document.getElementById('successToast');
+    if (wrap) {
+        wrap.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => wrap.remove(), 300);
+    }
+}
+{% endif %}
+</script>
+</body>
+</html>

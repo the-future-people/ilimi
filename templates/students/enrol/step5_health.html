@@ -1,0 +1,294 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrol Student — Step 5 · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+        .back-btn:hover { background: rgba(255,255,255,0.15); }
+        .back-btn svg { width: 16px; height: 16px; }
+        .breadcrumb { max-width: 900px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .wizard-wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 60px; }
+        .progress-block { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .progress-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .progress-counter { font-size: 12px; color: #aaa; font-weight: 600; }
+        .steps-row { display: flex; gap: 6px; }
+        .step-pip { flex: 1; height: 5px; border-radius: 10px; background: #eee; }
+        .step-pip.done { background: var(--gold); }
+        .step-pip.active { background: var(--navy); }
+        .steps-labels { display: flex; margin-top: 10px; }
+        .step-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; text-align: center; }
+        .step-label.active { color: var(--navy); }
+        .step-label.done { color: var(--gold); }
+        .form-card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .form-card-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+        .form-card-title svg { width: 20px; height: 20px; color: var(--gold); }
+        .form-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-full { grid-column: 1 / -1; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field label .req { color: #e53e3e; margin-left: 2px; }
+        .field input, .field select, .field textarea { padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s, background 0.2s; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--navy); background: #fff; }
+        .field input.error, .field select.error { border-color: #e53e3e; background: #fff5f5; }
+        .field .error-msg { font-size: 11px; color: #e53e3e; font-weight: 500; }
+        .field .hint { font-size: 11px; color: #aaa; }
+        .section-divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 8px 0; }
+        .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; }
+
+        /* BLOOD GROUP PICKER */
+        .blood-group-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .bg-option { position: relative; }
+        .bg-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .bg-option label { display: flex; align-items: center; justify-content: center; padding: 10px; border: 1.5px solid #e8e8e8; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #fafafa; font-size: 13px; font-weight: 700; color: var(--navy); }
+        .bg-option label:hover { border-color: var(--navy); }
+        .bg-option input[type="radio"]:checked + label { border-color: var(--navy); background: var(--navy); color: #fff; }
+
+        /* DISABILITY TOGGLE */
+        .checkbox-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fafafa; border: 1.5px solid #e8e8e8; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .checkbox-row:hover { border-color: var(--navy); background: #f5f7fa; }
+        .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--navy); cursor: pointer; flex-shrink: 0; }
+        .checkbox-row-text .cb-label { font-size: 13px; font-weight: 600; color: var(--navy); }
+        .checkbox-row-text .cb-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        /* EMERGENCY CARD */
+        .emergency-card { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border-left: 4px solid #e53e3e; }
+        .emergency-title { font-size: 15px; font-weight: 700; color: #c53030; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .emergency-title svg { width: 18px; height: 18px; }
+        .emergency-subtitle { font-size: 13px; color: #999; margin-bottom: 24px; }
+
+        /* INFO BANNER */
+        .info-banner { grid-column: 1 / -1; background: rgba(229,62,62,0.05); border: 1px solid rgba(229,62,62,0.15); border-radius: 12px; padding: 14px 18px; display: flex; align-items: flex-start; gap: 12px; }
+        .info-banner svg { width: 18px; height: 18px; color: #e53e3e; flex-shrink: 0; margin-top: 1px; }
+        .info-banner p { font-size: 12px; color: #666; line-height: 1.6; }
+
+        .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 24px; border-top: 1px solid #f0f0f0; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: transparent; border: 1.5px solid #e0e0e0; border-radius: 10px; color: #666; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: var(--navy); color: var(--navy); }
+        .btn-next { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--navy); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-next:hover { background: var(--navy-light); }
+        .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+        #disabilityDesc { display: none; }
+        #disabilityDesc.visible { display: flex; }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .blood-group-grid { grid-template-columns: repeat(3, 1fr); } .brand-text { display: none; } .wizard-wrap { padding: 16px 16px 40px; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <a href="{% url 'dashboard:student_list' %}" class="back-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Cancel Enrolment
+        </a>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'dashboard:student_list' %}">Students</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Enrol New Student</span>
+</div>
+
+<div class="wizard-wrap">
+    <div class="progress-block">
+        <div class="progress-header">
+            <div class="progress-title">Enrol New Student</div>
+            <div class="progress-counter">Step 5 of 6</div>
+        </div>
+        <div class="steps-row">
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip active"></div>
+            <div class="step-pip"></div>
+        </div>
+        <div class="steps-labels">
+            <span class="step-label done">Personal</span>
+            <span class="step-label done">Academic</span>
+            <span class="step-label done">Contact</span>
+            <span class="step-label done">Guardian</span>
+            <span class="step-label active">Health</span>
+            <span class="step-label">Review</span>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- HEALTH INFO -->
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                Health Information
+            </div>
+            <div class="form-card-subtitle">Medical details to keep the student safe at school.</div>
+
+            <div class="form-grid">
+                <div class="section-label">Blood Group</div>
+
+                <div class="blood-group-grid">
+                    {% for val, label in blood_group_choices %}
+                    <div class="bg-option">
+                        <input type="radio" name="blood_group" id="bg_{{ val }}" value="{{ val }}"
+                            {% if form_data.blood_group == val or not form_data.blood_group and val == 'unknown' %}checked{% endif %}>
+                        <label for="bg_{{ val }}">{{ label }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="section-label">Medical Details</div>
+
+                <div class="field form-full">
+                    <label>Known Allergies</label>
+                    <textarea name="known_allergies" rows="2"
+                        placeholder="e.g. Penicillin, peanuts, dust — leave blank if none">{{ form_data.known_allergies|default:'' }}</textarea>
+                </div>
+
+                <div class="field form-full">
+                    <label>Medical Notes</label>
+                    <textarea name="medical_notes" rows="2"
+                        placeholder="e.g. Asthma, requires inhaler — leave blank if none">{{ form_data.medical_notes|default:'' }}</textarea>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <label class="checkbox-row" onclick="toggleDisability()">
+                    <input type="checkbox" name="disability_status" id="disabilityCheck"
+                        {% if form_data.disability_status %}checked{% endif %}>
+                    <div class="checkbox-row-text">
+                        <div class="cb-label">Student has a disability or special need</div>
+                        <div class="cb-desc">Check this to add details about the student's condition.</div>
+                    </div>
+                </label>
+
+                <div class="field form-full {% if form_data.disability_status %}visible{% endif %}" id="disabilityDesc">
+                    <label>Disability / Special Need Description</label>
+                    <textarea name="disability_description" rows="2"
+                        placeholder="e.g. Visual impairment, requires front seating">{{ form_data.disability_description|default:'' }}</textarea>
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="section-label">Additional</div>
+
+                <div class="field form-full">
+                    <label>Talents & Skills</label>
+                    <textarea name="talents_skills" rows="2"
+                        placeholder="e.g. Football, music, debating, chess">{{ form_data.talents_skills|default:'' }}</textarea>
+                </div>
+
+                <div class="field form-full">
+                    <label>Additional Notes</label>
+                    <textarea name="additional_notes" rows="2"
+                        placeholder="Any other information the school should know">{{ form_data.additional_notes|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMERGENCY CONTACT -->
+        <div class="emergency-card">
+            <div class="emergency-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                Emergency Contact
+            </div>
+            <div class="emergency-subtitle">Who should the school call first in an emergency?</div>
+
+            <div class="form-grid">
+                <div class="info-banner">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <p>This is the person the school will call immediately if there is a medical emergency or incident. This can be the same as a guardian but must be explicitly entered here.</p>
+                </div>
+
+                <div class="field">
+                    <label>Full Name <span class="req">*</span></label>
+                    <input type="text" name="emergency_full_name"
+                        value="{{ form_data.emergency_full_name|default:'' }}"
+                        placeholder="e.g. Abena Asante"
+                        class="{% if errors.emergency_full_name %}error{% endif %}">
+                    {% if errors.emergency_full_name %}<span class="error-msg">{{ errors.emergency_full_name }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>Relationship</label>
+                    <select name="emergency_relationship">
+                        <option value="">— Select —</option>
+                        {% for val, label in ec_relationship_choices %}
+                        <option value="{{ val }}" {% if form_data.emergency_relationship == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label>Phone Number <span class="req">*</span></label>
+                    <input type="tel" name="emergency_phone"
+                        value="{{ form_data.emergency_phone|default:'' }}"
+                        placeholder="e.g. 0244123456"
+                        class="{% if errors.emergency_phone %}error{% endif %}">
+                    {% if errors.emergency_phone %}<span class="error-msg">{{ errors.emergency_phone }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>WhatsApp Number</label>
+                    <input type="tel" name="emergency_whatsapp"
+                        value="{{ form_data.emergency_whatsapp|default:'' }}"
+                        placeholder="If different from phone">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'dashboard:student_enrol_step4' %}" class="btn-back">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Back
+            </a>
+            <button type="submit" class="btn-next">
+                Next: Review & Confirm
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleDisability() {
+    const desc = document.getElementById('disabilityDesc');
+    const check = document.getElementById('disabilityCheck');
+    setTimeout(() => {
+        if (check.checked) desc.classList.add('visible');
+        else desc.classList.remove('visible');
+    }, 0);
+}
+{% if form_data.disability_status %}
+document.getElementById('disabilityDesc').classList.add('visible');
+{% endif %}
+</script>
+</body>
+</html>

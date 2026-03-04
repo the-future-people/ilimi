@@ -7,16 +7,45 @@
     <title>Teacher Portal · {{ school.name }}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        :root {
+            --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72;
+            --gold: #e8a021; --gold-light: #f5c05a;
+        }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* ── HEADER ── */
         .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
-        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
         .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
         .header-brand img { width: 38px; height: 38px; object-fit: contain; }
         .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
         .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
-        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+
+        /* notification bell */
+        .notif-btn { position: relative; width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.08); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .notif-btn:hover { background: rgba(255,255,255,0.14); }
+        .notif-btn svg { width: 18px; height: 18px; color: rgba(255,255,255,0.75); }
+        .notif-badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); border: 2px solid var(--navy); }
+        .notif-dropdown { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 320px; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.14); z-index: 200; overflow: hidden; }
+        .notif-dropdown.open { display: block; }
+        .notif-header { padding: 16px 18px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+        .notif-header-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+        .notif-mark-read { font-size: 11px; color: var(--gold); font-weight: 600; cursor: pointer; background: none; border: none; font-family: 'DM Sans', sans-serif; }
+        .notif-list { max-height: 300px; overflow-y: auto; }
+        .notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #fafafa; transition: background 0.15s; }
+        .notif-item:hover { background: #fafafa; }
+        .notif-item.unread { background: rgba(232,160,33,0.04); }
+        .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-top: 5px; flex-shrink: 0; }
+        .notif-dot.read { background: #e0e0e0; }
+        .notif-text p { font-size: 12px; color: #444; line-height: 1.5; }
+        .notif-text span { font-size: 10px; color: #bbb; margin-top: 3px; display: block; }
+        .notif-footer { padding: 12px 18px; border-top: 1px solid #f0f0f0; text-align: center; }
+        .notif-footer a { font-size: 12px; font-weight: 600; color: var(--navy); text-decoration: none; }
+        .notif-footer a:hover { color: var(--gold); }
+
+        /* user menu */
         .user-menu { position: relative; }
         .user-btn { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; background: rgba(255,255,255,0.08); border: none; border-radius: 12px; cursor: pointer; transition: background 0.2s; font-family: 'DM Sans', sans-serif; }
         .user-btn:hover { background: rgba(255,255,255,0.14); }
@@ -33,89 +62,78 @@
         .dropdown-divider { height: 1px; background: #f0f0f0; margin: 4px 0; }
         .dropdown-item.danger { color: #dc2626; }
         .dropdown-item.danger svg { color: #dc2626; }
-        .page { max-width: 1280px; margin: 0 auto; padding: 28px 24px 60px; }
 
-        /* WELCOME HERO */
-        .welcome-hero { background: linear-gradient(135deg, var(--navy), var(--navy-light)); border-radius: 20px; padding: 32px; margin-bottom: 24px; display: flex; align-items: center; gap: 24px; position: relative; overflow: hidden; }
-        .welcome-hero::before { content: ''; position: absolute; right: -40px; top: -40px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.03); }
-        .welcome-hero::after { content: ''; position: absolute; right: 80px; bottom: -60px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.02); }
-        .hero-avatar { width: 72px; height: 72px; border-radius: 18px; background: var(--gold); color: var(--navy); font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border: 3px solid rgba(255,255,255,0.15); position: relative; z-index: 1; }
-        .hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .hero-text { flex: 1; position: relative; z-index: 1; }
-        .hero-greeting { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
-        .hero-name { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: #fff; }
-        .hero-meta { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
-        .hero-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(232,160,33,0.2); border: 1px solid rgba(232,160,33,0.3); border-radius: 20px; font-size: 11px; font-weight: 700; color: var(--gold); }
-        .hero-badge svg { width: 12px; height: 12px; }
-        .hero-meta-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(255,255,255,0.5); }
-        .hero-meta-item svg { width: 13px; height: 13px; }
-        .hero-school { position: relative; z-index: 1; text-align: right; }
-        .hero-school .school-name { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.8); }
-        .hero-school .school-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 4px; }
+        /* ── PAGE ── */
+        .page { max-width: 1280px; margin: 0 auto; padding: 32px 40px 60px; }
 
-        /* STATS */
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
-        .stat-icon svg { width: 18px; height: 18px; }
-        .stat-icon.navy { background: rgba(26,41,70,0.08); color: var(--navy); }
-        .stat-icon.gold { background: rgba(232,160,33,0.1); color: #b45309; }
-        .stat-icon.green { background: rgba(21,128,61,0.08); color: #15803d; }
-        .stat-icon.blue { background: rgba(30,64,175,0.08); color: #1e40af; }
-        .stat-value { font-size: 24px; font-weight: 700; color: var(--navy); }
-        .stat-label { font-size: 11px; color: #aaa; margin-top: 3px; }
+        /* ── PORTAL CARD ── */
+        .portal-card { background: #fff; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
 
-        /* CONTENT GRID */
-        .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
-        .content-main { display: flex; flex-direction: column; gap: 20px; }
-        .content-side { display: flex; flex-direction: column; gap: 20px; }
+        /* ── IDENTITY STRIP ── */
+        .identity-strip { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--gold); }
+        .identity-left { display: flex; align-items: center; gap: 16px; }
+        .id-avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--navy); color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border: 2px solid rgba(26,41,70,0.1); }
+        .id-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .id-name-block { display: flex; flex-direction: column; gap: 5px; }
+        .id-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: var(--navy); line-height: 1; }
+        .id-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .id-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; background: rgba(232,160,33,0.12); border: 1px solid rgba(232,160,33,0.35); border-radius: 20px; font-size: 10px; font-weight: 700; color: #b45309; }
+        .id-badge svg { width: 10px; height: 10px; }
+        .id-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #888; font-weight: 500; }
+        .id-pill svg { width: 11px; height: 11px; color: #bbb; }
+        .id-divider { width: 1px; height: 10px; background: #e0e0e0; }
+        .identity-stats { display: flex; align-items: center; gap: 6px; }
+        .id-stat { display: flex; flex-direction: column; align-items: center; padding: 10px 20px; border-radius: 12px; background: #f8f9fb; min-width: 80px; }
+        .id-stat-value { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; }
+        .id-stat-label { font-size: 10px; color: #aaa; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        .id-stat-sep { width: 1px; height: 36px; background: #ebebeb; }
 
-        /* CARDS */
-        .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #f0f0f0; }
-        .card-title { font-size: 14px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 8px; }
-        .card-title svg { width: 16px; height: 16px; color: var(--gold); }
+        /* ── DOMAIN GRID ── */
+        .domain-grid-wrap { padding: 24px 28px 28px; }
+        .domain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 
-        /* MODULE CARDS */
-        .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .module-card { border-radius: 14px; padding: 20px; text-decoration: none; display: flex; flex-direction: column; gap: 10px; transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; min-height: 120px; }
-        .module-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .module-card.blue { background: linear-gradient(135deg, #1e40af, #3b82f6); }
-        .module-card.green { background: linear-gradient(135deg, #15803d, #22c55e); }
-        .module-card.orange { background: linear-gradient(135deg, #c2410c, #f97316); }
-        .module-card.purple { background: linear-gradient(135deg, #7e22ce, #a855f7); }
-        .module-card-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
-        .module-card-icon svg { width: 18px; height: 18px; color: #fff; }
-        .module-card-title { font-size: 14px; font-weight: 700; color: #fff; }
-        .module-card-sub { font-size: 11px; color: rgba(255,255,255,0.65); }
-        .module-card .soon { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.15); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+        .domain-card { border-radius: 16px; padding: 24px 22px 20px; text-decoration: none; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; min-height: 200px; cursor: pointer; }
+        .domain-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+        .domain-card.disabled { opacity: 0.7; cursor: default; }
+        .domain-card.disabled:hover { transform: none; box-shadow: none; }
 
-        /* COMING SOON */
-        .coming-soon { text-align: center; padding: 32px 20px; }
-        .coming-soon-icon { width: 48px; height: 48px; border-radius: 14px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
-        .coming-soon-icon svg { width: 22px; height: 22px; color: #ccc; }
-        .coming-soon h3 { font-size: 14px; font-weight: 700; color: #999; margin-bottom: 6px; }
-        .coming-soon p { font-size: 12px; color: #bbb; line-height: 1.6; }
+        .domain-card.theme-blue   { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+        .domain-card.theme-teal   { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+        .domain-card.theme-orange { background: linear-gradient(135deg, #9a3412, #ea580c); }
+        .domain-card.theme-purple { background: linear-gradient(135deg, #6b21a8, #a855f7); }
+        .domain-card.theme-rose   { background: linear-gradient(135deg, #9f1239, #f43f5e); }
+        .domain-card.theme-navy   { background: linear-gradient(135deg, var(--navy-deep), var(--navy-light)); }
 
-        /* PROFILE SIDE CARD */
-        .profile-rows { display: flex; flex-direction: column; gap: 10px; }
-        .profile-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #f8f8f8; }
-        .profile-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .profile-key { font-size: 11px; color: #aaa; font-weight: 600; }
-        .profile-val { font-size: 12px; color: var(--navy); font-weight: 600; text-align: right; }
-        .profile-val.empty { color: #ccc; font-style: italic; font-weight: 400; }
-        .staff-id-badge { font-family: monospace; font-size: 12px; font-weight: 700; color: var(--navy); background: rgba(26,41,70,0.06); padding: 3px 10px; border-radius: 8px; }
+        /* illustration watermark */
+        .domain-card-illus { position: absolute; bottom: -10px; right: -10px; width: 160px; height: 160px; opacity: 0.96; pointer-events: none; transition: opacity 0.2s; }
+        .domain-card:hover .domain-card-illus { opacity: 0.98; }
 
-        /* SUBJECT TAGS */
-        .subject-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-        .subject-tag { font-size: 11px; font-weight: 600; color: var(--navy); background: rgba(26,41,70,0.06); padding: 4px 10px; border-radius: 20px; }
+        .domain-card-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; flex-shrink: 0; position: relative; z-index: 1; }
+        .domain-card-icon svg { width: 22px; height: 22px; color: #fff; }
 
-        @media (max-width: 1024px) { .content-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px) { .brand-text { display: none; } .page { padding: 16px 16px 40px; } .module-grid { grid-template-columns: 1fr; } .hero-school { display: none; } }
+        .domain-card-body { display: flex; flex-direction: column; flex: 1; position: relative; z-index: 1; }
+        .domain-card-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .domain-card-desc { font-size: 11px; color: rgba(255,255,255,0.62); line-height: 1.55; flex: 1; }
+        .domain-card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+        .domain-card-tag { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); }
+
+        .domain-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,0.12); position: relative; z-index: 1; }
+        .status-pill { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.4px; }
+        .status-pill.active { background: rgba(255,255,255,0.2); color: #fff; }
+        .status-pill.soon   { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); }
+        .status-pill.na     { background: rgba(0,0,0,0.15); color: rgba(255,255,255,0.38); }
+        .domain-card-footer .arrow { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.13); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .domain-card:hover .arrow { background: rgba(255,255,255,0.24); }
+        .domain-card.disabled .arrow { display: none; }
+        .arrow svg { width: 14px; height: 14px; color: #fff; }
+
+        @media (max-width: 1024px) { .domain-grid { grid-template-columns: repeat(2,1fr); } .identity-stats { display: none; } }
+        @media (max-width: 640px) { .brand-text { display: none; } .page { padding: 16px 16px 40px; } .header-inner { padding: 0 16px; } .domain-grid-wrap { padding: 16px; } .domain-grid { grid-template-columns: 1fr; } .identity-strip { padding: 16px; } }
     </style>
 </head>
 <body>
 
+<!-- ── HEADER ── -->
 <header class="header">
     <div class="header-inner">
         <a href="{% url 'dashboard:home' %}" class="header-brand">
@@ -126,22 +144,61 @@
             </div>
         </a>
         <div class="header-right">
+
+            <!-- NOTIFICATIONS -->
+            <div class="user-menu" id="notifMenu">
+                <button class="notif-btn" onclick="toggleMenu('notifMenu')">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notif-badge"></span>
+                </button>
+                <div class="notif-dropdown" id="notifMenuDropdown">
+                    <div class="notif-header">
+                        <span class="notif-header-title">Notifications</span>
+                        <button class="notif-mark-read">Mark all read</button>
+                    </div>
+                    <div class="notif-list">
+                        <div class="notif-item unread">
+                            <span class="notif-dot"></span>
+                            <div class="notif-text">
+                                <p>Your staff profile has been approved.</p>
+                                <span>Just now</span>
+                            </div>
+                        </div>
+                        <div class="notif-item unread">
+                            <span class="notif-dot"></span>
+                            <div class="notif-text">
+                                <p>Welcome to {{ school.name }}. Your portal is ready.</p>
+                                <span>Today</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="notif-footer">
+                        <a href="#">View all notifications</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USER MENU -->
             <div class="user-menu" id="userMenu">
-                <button class="user-btn" onclick="document.getElementById('userMenu').classList.toggle('open')">
+                <button class="user-btn" onclick="toggleMenu('userMenu')">
                     <div class="user-avatar">
                         {% if staff_profile and staff_profile.photo %}
-                        <img src="{{ staff_profile.photo.url }}" alt="">
+                            <img src="{{ staff_profile.photo.url }}" alt="">
                         {% else %}
-                        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+                            {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
                         {% endif %}
                     </div>
                     <div class="user-info">
                         <div class="uname">{{ user.full_name }}</div>
                         <div class="urole">Teacher</div>
                     </div>
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
                 </button>
-                <div class="dropdown">
+                <div class="dropdown" id="userMenuDropdown">
                     <a href="#" class="dropdown-item">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                         My Profile
@@ -156,232 +213,216 @@
                     </form>
                 </div>
             </div>
+
         </div>
     </div>
 </header>
 
+<!-- ── PAGE ── -->
 <div class="page">
+    <div class="portal-card">
 
-    <!-- WELCOME HERO -->
-    <div class="welcome-hero">
-        <div class="hero-avatar">
-            {% if staff_profile and staff_profile.photo %}
-            <img src="{{ staff_profile.photo.url }}" alt="">
-            {% else %}
-            {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-            {% endif %}
-        </div>
-        <div class="hero-text">
-            <div class="hero-greeting">Welcome back,</div>
-            <div class="hero-name">{{ user.full_name }}</div>
-            <div class="hero-meta">
-                <span class="hero-badge">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
-                    Teacher
-                </span>
-                {% if staff_profile %}
-                <span class="hero-meta-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
-                    {{ staff_profile.staff_id }}
-                </span>
-                <span class="hero-meta-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                    {{ staff_profile.get_employment_type_display }}
-                </span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="hero-school">
-            <div class="school-name">{{ school.name }}</div>
-            <div class="school-sub">{{ role_display }}</div>
-        </div>
-    </div>
-
-    <!-- STATS -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-icon navy">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </div>
-            <div class="stat-value">—</div>
-            <div class="stat-label">My Classes</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon gold">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            </div>
-            <div class="stat-value">—</div>
-            <div class="stat-label">Attendance Today</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon green">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-            </div>
-            <div class="stat-value">{% if staff_profile %}{{ staff_profile.subject_specializations.count }}{% else %}—{% endif %}</div>
-            <div class="stat-label">Subjects</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon blue">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <div class="stat-value">{% if staff_profile %}{{ staff_profile.leave_days_remaining }}{% else %}—{% endif %}</div>
-            <div class="stat-label">Leave Days Left</div>
-        </div>
-    </div>
-
-    <div class="content-grid">
-        <div class="content-main">
-
-            <!-- MODULES -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                        My Modules
+        <!-- ── IDENTITY STRIP ── -->
+        <div class="identity-strip">
+            <div class="identity-left">
+                <div class="id-name-block">
+                    <div class="id-meta">
+                        <span class="id-badge">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
+                            Teacher
+                        </span>
+                        {% if staff_profile %}
+                        <span class="id-divider"></span>
+                        <span class="id-pill">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
+                            {{ staff_profile.staff_id }}
+                        </span>
+                        <span class="id-divider"></span>
+                        <span class="id-pill">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            {{ staff_profile.get_employment_type_display }}
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="module-grid">
-                    <a href="#" class="module-card blue">
-                        <span class="soon">Coming Soon</span>
-                        <div class="module-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        </div>
-                        <div class="module-card-title">Attendance</div>
-                        <div class="module-card-sub">Take daily class register</div>
-                    </a>
-                    <a href="#" class="module-card green">
-                        <span class="soon">Coming Soon</span>
-                        <div class="module-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                        </div>
-                        <div class="module-card-title">Results & Grades</div>
-                        <div class="module-card-sub">Enter and manage scores</div>
-                    </a>
-                    <a href="#" class="module-card orange">
-                        <span class="soon">Coming Soon</span>
-                        <div class="module-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        </div>
-                        <div class="module-card-title">Timetable</div>
-                        <div class="module-card-sub">View your weekly schedule</div>
-                    </a>
-                    <a href="#" class="module-card purple">
-                        <span class="soon">Coming Soon</span>
-                        <div class="module-card-icon">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                        </div>
-                        <div class="module-card-title">Communications</div>
-                        <div class="module-card-sub">Messages & announcements</div>
-                    </a>
-                </div>
             </div>
 
-            <!-- MY CLASSES -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        My Classes
-                    </div>
+            <div class="identity-stats">
+                <div class="id-stat">
+                    <div class="id-stat-value">{{ classroom_count|default:"0" }}</div>
+                    <div class="id-stat-label">Classes</div>
                 </div>
-                <div class="coming-soon">
-                    <div class="coming-soon-icon">
+                <div class="id-stat-sep"></div>
+                <div class="id-stat">
+                    <div class="id-stat-value">{{ total_students|default:"0" }}</div>
+                    <div class="id-stat-label">Students</div>
+                </div>
+                <div class="id-stat-sep"></div>
+                <div class="id-stat">
+                    <div class="id-stat-value">{{ subject_count|default:"0" }}</div>
+                    <div class="id-stat-label">Subjects</div>
+                </div>
+                <div class="id-stat-sep"></div>
+                <div class="id-stat">
+                    <div class="id-stat-value">{% if staff_profile %}{{ staff_profile.leave_days_remaining }}{% else %}—{% endif %}</div>
+                    <div class="id-stat-label">Leave Days</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── DOMAIN CARDS ── -->
+        <div class="domain-grid-wrap">
+            <div class="domain-grid">
+
+                <!-- 1. CLASSROOM -->
+                <a href="#" class="domain-card theme-blue">
+                    <img class="domain-card-illus" src="{% static 'images/illustrations/Classroom-amico.svg' %}" alt="">
+                    <div class="domain-card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                     </div>
-                    <h3>Class assignments coming soon</h3>
-                    <p>Once timetabling is built, your assigned classes will appear here with quick access to take attendance and enter results.</p>
-                </div>
-            </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Classroom</div>
+                        <div class="domain-card-desc">Attendance, cover lessons, extracurricular <br> activities and inter-school competitions.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">Attendance</span>
+                            <span class="domain-card-tag">Cover Lessons</span>
+                            <span class="domain-card-tag">Extracurricular</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
 
+                <!-- 2. PLANNING -->
+                <a href="#" class="domain-card theme-teal">
+                    <img class="domain-card-illus" src="{% static 'images/illustrations/Scrum board-bro.svg' %}" alt="">
+                    <div class="domain-card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                    </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Planning</div>
+                        <div class="domain-card-desc">Scheme of work, lesson plans and <br> BECE / WASSCE revision planning.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">Scheme of Work</span>
+                            <span class="domain-card-tag">Lesson Plans</span>
+                            <span class="domain-card-tag">BECE/WASSCE</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
+
+                <!-- 3. ASSESSMENT -->
+                <a href="#" class="domain-card theme-orange">
+                     <img class="domain-card-illus" src="{% static 'images/illustrations/Credit assesment-pana.svg' %}" alt="">
+                    <div class="domain-card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Assessment</div>
+                        <div class="domain-card-desc">CA scores, homework, class tests, <br> mock exams, question setting and marking.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">CA Scores</span>
+                            <span class="domain-card-tag">Mock Exams</span>
+                            <span class="domain-card-tag">Marking</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
+
+                <!-- 4. REPORTING -->
+                <a href="#" class="domain-card theme-purple">
+                    <img class="domain-card-illus" src="{% static 'images/illustrations/Departing-bro.svg' %}" alt="">
+                    <div class="domain-card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Reporting</div>
+                        <div class="domain-card-desc">Terminal reports, report cards, class rankings, promotion decisions and candidate readiness.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">Report Cards</span>
+                            <span class="domain-card-tag">Rankings</span>
+                            <span class="domain-card-tag">Promotion</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
+
+                <!-- 5. STUDENT WELFARE -->
+                <a href="#" class="domain-card theme-rose">
+                    <img class="domain-card-illus" src="{% static 'images/illustrations/Students-bro.svg' %}" alt="">
+                    <div class="domain-card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Student Welfare</div>
+                        <div class="domain-card-desc">Behaviour records, parent communication log and at-risk student tracking.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">Behaviour</span>
+                            <span class="domain-card-tag">Parent Comms</span>
+                            <span class="domain-card-tag">At-Risk</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
+
+                <!-- 6. PROFESSIONAL & ADMIN -->
+                <a href="#" class="domain-card theme-navy">
+                   <img class="domain-card-illus" src="{% static 'images/illustrations/Buffer-pana.svg' %}" alt="">
+                    <div class="domain-card-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div class="domain-card-body">
+                        <div class="domain-card-title">Professional & Admin</div>
+                        <div class="domain-card-desc">NTC CPD hours, staff meetings, INSET days, textbook inventory and speech day.</div>
+                        <div class="domain-card-tags">
+                            <span class="domain-card-tag">CPD / NTC</span>
+                            <span class="domain-card-tag">Meetings</span>
+                            <span class="domain-card-tag">Textbooks</span>
+                        </div>
+                    </div>
+                    <div class="domain-card-footer">
+                        <span class="status-pill soon">Coming Soon</span>
+                        <span class="arrow"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
+                    </div>
+                </a>
+
+            </div>
         </div>
 
-        <!-- SIDEBAR -->
-        <div class="content-side">
-
-            <!-- STAFF PROFILE CARD -->
-            {% if staff_profile %}
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                        My Profile
-                    </div>
-                </div>
-                <div class="profile-rows">
-                    <div class="profile-row">
-                        <span class="profile-key">Staff ID</span>
-                        <span class="staff-id-badge">{{ staff_profile.staff_id }}</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Employment</span>
-                        <span class="profile-val">{{ staff_profile.get_employment_type_display }}</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Phone</span>
-                        <span class="profile-val">{{ staff_profile.phone }}</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Qualification</span>
-                        <span class="profile-val {% if not staff_profile.highest_qualification %}empty{% endif %}">{{ staff_profile.get_highest_qualification_display|default:"Not set" }}</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Experience</span>
-                        <span class="profile-val">{{ staff_profile.years_of_experience }} yr{{ staff_profile.years_of_experience|pluralize }}</span>
-                    </div>
-                </div>
-                {% if staff_profile.subject_specializations.exists %}
-                <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f0f0f0;">
-                    <div style="font-size:11px;color:#aaa;font-weight:600;margin-bottom:8px;">SUBJECTS</div>
-                    <div class="subject-tags">
-                        {% for subject in staff_profile.subject_specializations.all %}
-                        <span class="subject-tag">{{ subject.name }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- LEAVE SUMMARY -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        Leave Summary
-                    </div>
-                </div>
-                {% if staff_profile %}
-                <div class="profile-rows">
-                    <div class="profile-row">
-                        <span class="profile-key">Entitlement</span>
-                        <span class="profile-val">{{ staff_profile.leave_entitlement_days }} days</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Taken</span>
-                        <span class="profile-val">{{ staff_profile.leave_days_taken }} days</span>
-                    </div>
-                    <div class="profile-row">
-                        <span class="profile-key">Remaining</span>
-                        <span class="profile-val" style="color:{% if staff_profile.leave_days_remaining > 5 %}#15803d{% else %}#dc2626{% endif %}">{{ staff_profile.leave_days_remaining }} days</span>
-                    </div>
-                </div>
-                {% else %}
-                <div class="coming-soon">
-                    <div class="coming-soon-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>
-                    <h3>No leave data</h3>
-                </div>
-                {% endif %}
-            </div>
-
-        </div>
     </div>
 </div>
 
 <script>
-document.addEventListener('click', function(e) {
-    const menu = document.getElementById('userMenu');
-    if (menu && !menu.contains(e.target)) menu.classList.remove('open');
-});
+    function toggleMenu(menuId) {
+        ['notifMenu', 'userMenu'].forEach(id => {
+            const el = document.getElementById(id);
+            const drop = el.querySelector('.dropdown, .notif-dropdown');
+            if (id === menuId) { drop.classList.toggle('open'); }
+            else { drop.classList.remove('open'); }
+        });
+    }
+    document.addEventListener('click', function(e) {
+        ['notifMenu', 'userMenu'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.contains(e.target)) {
+                el.querySelector('.dropdown, .notif-dropdown').classList.remove('open');
+            }
+        });
+    });
 </script>
 </body>
 </html>

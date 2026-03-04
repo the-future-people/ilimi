@@ -1,0 +1,355 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrol Student — Step 4 · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+        .back-btn:hover { background: rgba(255,255,255,0.15); }
+        .back-btn svg { width: 16px; height: 16px; }
+        .breadcrumb { max-width: 900px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .wizard-wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 60px; }
+        .progress-block { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .progress-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .progress-counter { font-size: 12px; color: #aaa; font-weight: 600; }
+        .steps-row { display: flex; gap: 6px; }
+        .step-pip { flex: 1; height: 5px; border-radius: 10px; background: #eee; }
+        .step-pip.done { background: var(--gold); }
+        .step-pip.active { background: var(--navy); }
+        .steps-labels { display: flex; margin-top: 10px; }
+        .step-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; text-align: center; }
+        .step-label.active { color: var(--navy); }
+        .step-label.done { color: var(--gold); }
+
+        /* GUARDIAN CARDS */
+        .guardian-card { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+        .guardian-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .guardian-card-title { font-size: 15px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 10px; }
+        .guardian-card-title svg { width: 18px; height: 18px; color: var(--gold); }
+        .primary-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: rgba(26,41,70,0.08); color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .optional-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: rgba(232,160,33,0.12); color: #b45309; text-transform: uppercase; letter-spacing: 0.5px; }
+        .guardian-card-subtitle { font-size: 13px; color: #999; margin-bottom: 24px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-full { grid-column: 1 / -1; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field label .req { color: #e53e3e; margin-left: 2px; }
+        .field input, .field select, .field textarea { padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s, background 0.2s; }
+        .field input:focus, .field select:focus { border-color: var(--navy); background: #fff; }
+        .field input.error, .field select.error { border-color: #e53e3e; background: #fff5f5; }
+        .field .error-msg { font-size: 11px; color: #e53e3e; font-weight: 500; }
+        .field .hint { font-size: 11px; color: #aaa; }
+        .section-divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 8px 0; }
+        .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; }
+
+        /* CHECKBOX TOGGLE */
+        .checkbox-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #fafafa; border: 1.5px solid #e8e8e8; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .checkbox-row:hover { border-color: var(--navy); background: #f5f7fa; }
+        .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--navy); cursor: pointer; flex-shrink: 0; }
+        .checkbox-row-text .cb-label { font-size: 13px; font-weight: 600; color: var(--navy); }
+        .checkbox-row-text .cb-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+        /* SECOND GUARDIAN TOGGLE */
+        .add-guardian-btn { width: 100%; padding: 16px; border: 2px dashed #e0e0e0; border-radius: 14px; background: transparent; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: #aaa; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; margin-bottom: 16px; }
+        .add-guardian-btn:hover { border-color: var(--navy); color: var(--navy); background: rgba(26,41,70,0.02); }
+        .add-guardian-btn svg { width: 18px; height: 18px; }
+        #guardian2Section { display: none; }
+        #guardian2Section.visible { display: block; }
+
+        .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 24px; border-top: 1px solid #f0f0f0; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: transparent; border: 1.5px solid #e0e0e0; border-radius: 10px; color: #666; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: var(--navy); color: var(--navy); }
+        .btn-next { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--navy); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-next:hover { background: var(--navy-light); }
+        .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .brand-text { display: none; } .wizard-wrap { padding: 16px 16px 40px; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <a href="{% url 'dashboard:student_list' %}" class="back-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Cancel Enrolment
+        </a>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'dashboard:student_list' %}">Students</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Enrol New Student</span>
+</div>
+
+<div class="wizard-wrap">
+    <div class="progress-block">
+        <div class="progress-header">
+            <div class="progress-title">Enrol New Student</div>
+            <div class="progress-counter">Step 4 of 6</div>
+        </div>
+        <div class="steps-row">
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip done"></div>
+            <div class="step-pip active"></div>
+            <div class="step-pip"></div>
+            <div class="step-pip"></div>
+        </div>
+        <div class="steps-labels">
+            <span class="step-label done">Personal</span>
+            <span class="step-label done">Academic</span>
+            <span class="step-label done">Contact</span>
+            <span class="step-label active">Guardian</span>
+            <span class="step-label">Health</span>
+            <span class="step-label">Review</span>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- PRIMARY GUARDIAN -->
+        <div class="guardian-card">
+            <div class="guardian-card-header">
+                <div class="guardian-card-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    Primary Guardian
+                </div>
+                <span class="primary-badge">Primary Contact</span>
+            </div>
+            <div class="guardian-card-subtitle">Main contact for this student. Will receive all SMS notifications.</div>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label>First Name <span class="req">*</span></label>
+                    <input type="text" name="guardian1_first_name"
+                        value="{{ form_data.guardian1_first_name|default:'' }}"
+                        placeholder="e.g. Akosua"
+                        class="{% if errors.guardian1_first_name %}error{% endif %}">
+                    {% if errors.guardian1_first_name %}<span class="error-msg">{{ errors.guardian1_first_name }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>Last Name <span class="req">*</span></label>
+                    <input type="text" name="guardian1_last_name"
+                        value="{{ form_data.guardian1_last_name|default:'' }}"
+                        placeholder="e.g. Mensah"
+                        class="{% if errors.guardian1_last_name %}error{% endif %}">
+                    {% if errors.guardian1_last_name %}<span class="error-msg">{{ errors.guardian1_last_name }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>Relationship <span class="req">*</span></label>
+                    <select name="guardian1_relationship"
+                        class="{% if errors.guardian1_relationship %}error{% endif %}">
+                        <option value="">— Select —</option>
+                        {% for val, label in relationship_choices %}
+                        <option value="{{ val }}" {% if form_data.guardian1_relationship == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.guardian1_relationship %}<span class="error-msg">{{ errors.guardian1_relationship }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>Phone Number <span class="req">*</span></label>
+                    <input type="tel" name="guardian1_phone"
+                        value="{{ form_data.guardian1_phone|default:'' }}"
+                        placeholder="e.g. 0244123456"
+                        class="{% if errors.guardian1_phone %}error{% endif %}">
+                    {% if errors.guardian1_phone %}<span class="error-msg">{{ errors.guardian1_phone }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>WhatsApp Number</label>
+                    <input type="tel" name="guardian1_whatsapp"
+                        value="{{ form_data.guardian1_whatsapp|default:'' }}"
+                        placeholder="If different from phone">
+                </div>
+
+                <div class="field">
+                    <label>Email Address</label>
+                    <input type="email" name="guardian1_email"
+                        value="{{ form_data.guardian1_email|default:'' }}"
+                        placeholder="e.g. akosua@email.com">
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="section-label">Employment</div>
+
+                <div class="field">
+                    <label>Occupation</label>
+                    <input type="text" name="guardian1_occupation"
+                        value="{{ form_data.guardian1_occupation|default:'' }}"
+                        placeholder="e.g. Teacher, Trader, Engineer">
+                </div>
+
+                <div class="field">
+                    <label>Employer / Business</label>
+                    <input type="text" name="guardian1_employer"
+                        value="{{ form_data.guardian1_employer|default:'' }}"
+                        placeholder="e.g. Ghana Education Service">
+                </div>
+
+                <div class="field form-full">
+                    <label>Residential Address</label>
+                    <input type="text" name="guardian1_address"
+                        value="{{ form_data.guardian1_address|default:'' }}"
+                        placeholder="e.g. House 5, Spintex Road, Accra">
+                </div>
+
+                <div class="section-divider"></div>
+
+                <label class="checkbox-row">
+                    <input type="checkbox" name="guardian1_is_fee_payer"
+                        {% if form_data.guardian1_is_fee_payer %}checked{% endif %}>
+                    <div class="checkbox-row-text">
+                        <div class="cb-label">Responsible for school fees</div>
+                        <div class="cb-desc">This guardian will be the primary fee payer for this student.</div>
+                    </div>
+                </label>
+
+            </div>
+        </div>
+
+        <!-- ADD SECOND GUARDIAN -->
+        <button type="button" class="add-guardian-btn" id="addGuardianBtn" onclick="toggleGuardian2()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Second Guardian (Optional)
+        </button>
+
+        <!-- SECOND GUARDIAN -->
+        <div id="guardian2Section" class="{% if form_data.guardian2_first_name %}visible{% endif %}">
+            <div class="guardian-card">
+                <div class="guardian-card-header">
+                    <div class="guardian-card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        Second Guardian
+                    </div>
+                    <span class="optional-badge">Optional</span>
+                </div>
+                <div class="guardian-card-subtitle">Additional contact — will also receive SMS notifications.</div>
+
+                <div class="form-grid">
+                    <div class="field">
+                        <label>First Name</label>
+                        <input type="text" name="guardian2_first_name"
+                            value="{{ form_data.guardian2_first_name|default:'' }}"
+                            placeholder="e.g. Kofi">
+                    </div>
+
+                    <div class="field">
+                        <label>Last Name</label>
+                        <input type="text" name="guardian2_last_name"
+                            value="{{ form_data.guardian2_last_name|default:'' }}"
+                            placeholder="e.g. Asante">
+                    </div>
+
+                    <div class="field">
+                        <label>Relationship</label>
+                        <select name="guardian2_relationship">
+                            <option value="">— Select —</option>
+                            {% for val, label in relationship_choices %}
+                            <option value="{{ val }}" {% if form_data.guardian2_relationship == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label>Phone Number</label>
+                        <input type="tel" name="guardian2_phone"
+                            value="{{ form_data.guardian2_phone|default:'' }}"
+                            placeholder="e.g. 0201234567">
+                    </div>
+
+                    <div class="field">
+                        <label>WhatsApp Number</label>
+                        <input type="tel" name="guardian2_whatsapp"
+                            value="{{ form_data.guardian2_whatsapp|default:'' }}"
+                            placeholder="If different from phone">
+                    </div>
+
+                    <div class="field">
+                        <label>Email Address</label>
+                        <input type="email" name="guardian2_email"
+                            value="{{ form_data.guardian2_email|default:'' }}"
+                            placeholder="e.g. kofi@email.com">
+                    </div>
+
+                    <div class="field form-full">
+                        <label>Occupation</label>
+                        <input type="text" name="guardian2_occupation"
+                            value="{{ form_data.guardian2_occupation|default:'' }}"
+                            placeholder="e.g. Accountant">
+                    </div>
+
+                    <label class="checkbox-row">
+                        <input type="checkbox" name="guardian2_is_fee_payer"
+                            {% if form_data.guardian2_is_fee_payer %}checked{% endif %}>
+                        <div class="checkbox-row-text">
+                            <div class="cb-label">Responsible for school fees</div>
+                            <div class="cb-desc">This guardian will also be a fee payer for this student.</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'dashboard:student_enrol_step3' %}" class="btn-back">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Back
+            </a>
+            <button type="submit" class="btn-next">
+                Next: Health & Emergency
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleGuardian2() {
+    const section = document.getElementById('guardian2Section');
+    const btn = document.getElementById('addGuardianBtn');
+    const isVisible = section.classList.contains('visible');
+    if (isVisible) {
+        section.classList.remove('visible');
+        btn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Second Guardian (Optional)`;
+    } else {
+        section.classList.add('visible');
+        btn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg> Remove Second Guardian`;
+    }
+}
+// Auto-show if data exists from previous submission
+{% if form_data.guardian2_first_name %}
+document.getElementById('addGuardianBtn').innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg> Remove Second Guardian`;
+{% endif %}
+</script>
+</body>
+</html>

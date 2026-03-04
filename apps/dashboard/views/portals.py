@@ -54,14 +54,45 @@ def teacher_portal(request):
     if not membership or membership.role != 'teacher':
         return redirect('dashboard:home')
 
+    # ── Staff profile ──────────────────────────────────────────────────
+    staff_profile = None
+    try:
+        staff_profile = request.user.staff_profile
+    except Exception:
+        pass
+
+    # ── Assigned classes via SubjectAssignment ─────────────────────────
+    from apps.academics.models import SubjectAssignment
+    from apps.students.models import Student
+
+    assignments = SubjectAssignment.objects.filter(
+        teacher=membership
+    ).select_related('classroom', 'subject', 'term').order_by('classroom__section_name')
+
+    classroom_ids = list(assignments.values_list('classroom_id', flat=True).distinct())
+
+    assigned_classes = list(assignments.values(
+        'classroom__id',
+        'classroom__section_name',
+    ).distinct())
+
+    total_students = Student.objects.filter(
+        current_class__id__in=classroom_ids,
+        school=membership.school,
+        status='active',
+    ).count()
+
+    subject_count = assignments.values('subject_id').distinct().count()
+
     context = _base_context(request, membership)
-    # Placeholders — will be populated when academics/attendance are built
     context.update({
-        'my_classes': [],
-        'todays_attendance_taken': False,
+        'staff_profile': staff_profile,
+        'assigned_classes': assigned_classes,
+        'classroom_count': len(classroom_ids),
+        'total_students': total_students,
+        'subject_count': subject_count,
     })
     return render(request, 'dashboard/portals/teacher.html', context)
-
 
 # ── Accountant Portal ─────────────────────────────────────────────────────
 

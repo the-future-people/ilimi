@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Up Your Account · Ilimi</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-light: #2e4a72; --gold: #e8a021; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .card { background: #fff; border-radius: 20px; padding: 48px 40px; box-shadow: 0 8px 40px rgba(0,0,0,0.1); width: 100%; max-width: 460px; }
+        .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+        .logo-row img { width: 42px; height: 42px; object-fit: contain; }
+        .logo-row .name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .welcome-icon { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(135deg, var(--navy), var(--navy-light)); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .welcome-icon svg { width: 30px; height: 30px; color: var(--gold); }
+        h1 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+        .welcome-sub { font-size: 14px; color: #888; margin-bottom: 8px; line-height: 1.6; }
+        .staff-name { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+        .school-name { font-size: 13px; color: #aaa; margin-bottom: 28px; }
+        .divider { height: 1px; background: #f0f0f0; margin-bottom: 28px; }
+        .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field input { padding: 12px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s; }
+        .field input:focus { border-color: var(--navy); background: #fff; }
+        .field input.error { border-color: #dc2626; background: #fff5f5; }
+        .error-msg { font-size: 11px; color: #dc2626; font-weight: 500; }
+        .general-error { background: #fff5f5; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #dc2626; margin-bottom: 18px; }
+        .password-rules { background: #f8fafc; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+        .password-rules p { font-size: 12px; color: #888; margin-bottom: 6px; font-weight: 600; }
+        .password-rules ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+        .password-rules ul li { font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; }
+        .password-rules ul li::before { content: '·'; color: #ccc; font-size: 16px; }
+        .btn-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--navy), var(--navy-light)); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; box-shadow: 0 4px 16px rgba(26,41,70,0.25); }
+        .btn-submit:hover { opacity: 0.9; }
+        .expires-note { text-align: center; font-size: 12px; color: #bbb; margin-top: 16px; }
+        @media (max-width: 480px) { .card { padding: 32px 24px; } }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo-row">
+        <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+        <span class="name">Ilimi</span>
+    </div>
+
+    <div class="welcome-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+    </div>
+
+    <h1>Set Up Your Account</h1>
+    <p class="welcome-sub">You've been invited to access the staff portal.</p>
+    <div class="staff-name">{{ staff.full_name }}</div>
+    <div class="school-name">{{ staff.school.name }} · {{ staff.staff_id }}</div>
+
+    <div class="divider"></div>
+
+    {% if errors.general %}
+    <div class="general-error">{{ errors.general }}</div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="field">
+            <label>Create Password</label>
+            <input type="password" name="password1" placeholder="At least 8 characters"
+                class="{% if errors.password1 %}error{% endif %}" autofocus>
+            {% if errors.password1 %}<span class="error-msg">{{ errors.password1 }}</span>{% endif %}
+        </div>
+
+        <div class="field">
+            <label>Confirm Password</label>
+            <input type="password" name="password2" placeholder="Repeat your password"
+                class="{% if errors.password2 %}error{% endif %}">
+            {% if errors.password2 %}<span class="error-msg">{{ errors.password2 }}</span>{% endif %}
+        </div>
+
+        <div class="password-rules">
+            <p>Password requirements</p>
+            <ul>
+                <li>At least 8 characters long</li>
+                <li>Mix of letters and numbers recommended</li>
+                <li>Do not share your password with anyone</li>
+            </ul>
+        </div>
+
+        <button type="submit" class="btn-submit">Confirm & Access Portal</button>
+    </form>
+
+    <p class="expires-note">This invite link expires in 48 hours.</p>
+</div>
+</body>
+</html>

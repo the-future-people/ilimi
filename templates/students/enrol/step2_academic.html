@@ -1,0 +1,247 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrol Student — Step 2 · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root { --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72; --gold: #e8a021; --gold-light: #f5c05a; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(255,255,255,0.08); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+        .back-btn:hover { background: rgba(255,255,255,0.15); }
+        .back-btn svg { width: 16px; height: 16px; }
+        .breadcrumb { max-width: 900px; margin: 0 auto; padding: 16px 24px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #999; }
+        .breadcrumb a { color: var(--navy); text-decoration: none; font-weight: 500; }
+        .breadcrumb a:hover { color: var(--gold); }
+        .breadcrumb-sep { color: #ccc; }
+        .wizard-wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 60px; }
+        .progress-block { background: #fff; border-radius: 16px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .progress-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--navy); }
+        .progress-counter { font-size: 12px; color: #aaa; font-weight: 600; }
+        .steps-row { display: flex; gap: 6px; }
+        .step-pip { flex: 1; height: 5px; border-radius: 10px; background: #eee; transition: background 0.3s; }
+        .step-pip.done { background: var(--gold); }
+        .step-pip.active { background: var(--navy); }
+        .steps-labels { display: flex; justify-content: space-between; margin-top: 10px; }
+        .step-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; text-align: center; }
+        .step-label.active { color: var(--navy); }
+        .step-label.done { color: var(--gold); }
+        .form-card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .form-card-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+        .form-card-title svg { width: 20px; height: 20px; color: var(--gold); }
+        .form-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-full { grid-column: 1 / -1; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.5px; }
+        .field label .req { color: #e53e3e; margin-left: 2px; }
+        .field input, .field select, .field textarea { padding: 10px 14px; border: 1.5px solid #e8e8e8; border-radius: 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--navy); background: #fafafa; outline: none; transition: border 0.2s, background 0.2s; }
+        .field input:focus, .field select:focus { border-color: var(--navy); background: #fff; }
+        .field input.error, .field select.error { border-color: #e53e3e; background: #fff5f5; }
+        .field .error-msg { font-size: 11px; color: #e53e3e; font-weight: 500; }
+        .field .hint { font-size: 11px; color: #aaa; }
+        .section-divider { grid-column: 1 / -1; height: 1px; background: #f0f0f0; margin: 8px 0; }
+        .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 1px; padding-top: 4px; }
+
+        /* BOARDING TOGGLE */
+        .boarding-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; grid-column: 1 / -1; }
+        .boarding-option { position: relative; }
+        .boarding-option input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+        .boarding-option label { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 10px; border: 1.5px solid #e8e8e8; border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center; background: #fafafa; }
+        .boarding-option label .opt-icon { font-size: 22px; margin-bottom: 6px; }
+        .boarding-option label .opt-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+        .boarding-option label .opt-desc { font-size: 10px; color: #aaa; margin-top: 2px; }
+        .boarding-option input[type="radio"]:checked + label { border-color: var(--navy); background: rgba(26,41,70,0.04); }
+
+        .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 32px; padding-top: 24px; border-top: 1px solid #f0f0f0; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; background: transparent; border: 1.5px solid #e0e0e0; border-radius: 10px; color: #666; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .btn-back:hover { border-color: var(--navy); color: var(--navy); }
+        .btn-next { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--navy); border: none; border-radius: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; }
+        .btn-next:hover { background: var(--navy-light); }
+        .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } .boarding-options { grid-template-columns: 1fr; } .brand-text { display: none; } .wizard-wrap { padding: 16px 16px 40px; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:home' %}" class="header-brand">
+            <img src="{% static 'images/logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <a href="{% url 'dashboard:student_list' %}" class="back-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Cancel Enrolment
+        </a>
+    </div>
+</header>
+
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Dashboard</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{% url 'dashboard:student_list' %}">Students</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>Enrol New Student</span>
+</div>
+
+<div class="wizard-wrap">
+    <div class="progress-block">
+        <div class="progress-header">
+            <div class="progress-title">Enrol New Student</div>
+            <div class="progress-counter">Step 2 of 6</div>
+        </div>
+        <div class="steps-row">
+            <div class="step-pip done"></div>
+            <div class="step-pip active"></div>
+            <div class="step-pip"></div>
+            <div class="step-pip"></div>
+            <div class="step-pip"></div>
+            <div class="step-pip"></div>
+        </div>
+        <div class="steps-labels">
+            <span class="step-label done">Personal</span>
+            <span class="step-label active">Academic</span>
+            <span class="step-label">Contact</span>
+            <span class="step-label">Guardian</span>
+            <span class="step-label">Health</span>
+            <span class="step-label">Review</span>
+        </div>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-card">
+            <div class="form-card-title">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                Academic Placement
+            </div>
+            <div class="form-card-subtitle">Assign the student to a class and capture their academic background.</div>
+
+            <div class="form-grid">
+
+                <div class="section-label">Class Assignment</div>
+
+                <div class="field">
+                    <label>Enrolment Date <span class="req">*</span></label>
+                    <input type="date" name="enrollment_date"
+                        value="{{ form_data.enrollment_date|default:'' }}"
+                        class="{% if errors.enrollment_date %}error{% endif %}">
+                    {% if errors.enrollment_date %}<span class="error-msg">{{ errors.enrollment_date }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label>Assign to Class</label>
+                    <select name="current_class_id">
+                        <option value="">— No class yet —</option>
+                        {% for classroom in classrooms %}
+                        <option value="{{ classroom.pk }}"
+                            {% if form_data.current_class_id == classroom.pk|stringformat:"s" %}selected{% endif %}>
+                            {{ classroom }} ({{ classroom.academic_year }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <span class="hint">You can assign a class later from the student profile.</span>
+                </div>
+
+                <div class="field">
+                    <label>Previous School</label>
+                    <input type="text" name="previous_school"
+                        value="{{ form_data.previous_school|default:'' }}"
+                        placeholder="Name of last school attended">
+                </div>
+
+                <div class="field">
+                    <label>Expected Graduation Year</label>
+                    <input type="number" name="expected_graduation_year"
+                        value="{{ form_data.expected_graduation_year|default:'' }}"
+                        placeholder="e.g. 2030" min="2024" max="2050">
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="section-label">Boarding Status</div>
+
+                <div class="boarding-options">
+                    <div class="boarding-option">
+                        <input type="radio" name="boarding_status" id="day" value="day"
+                            {% if form_data.boarding_status == 'day' or not form_data.boarding_status %}checked{% endif %}>
+                        <label for="day">
+                            <span class="opt-icon">🏠</span>
+                            <span class="opt-label">Day Student</span>
+                            <span class="opt-desc">Goes home daily</span>
+                        </label>
+                    </div>
+                    <div class="boarding-option">
+                        <input type="radio" name="boarding_status" id="boarder" value="boarder"
+                            {% if form_data.boarding_status == 'boarder' %}checked{% endif %}>
+                        <label for="boarder">
+                            <span class="opt-icon">🏫</span>
+                            <span class="opt-label">Full Boarder</span>
+                            <span class="opt-desc">Lives on campus</span>
+                        </label>
+                    </div>
+                    <div class="boarding-option">
+                        <input type="radio" name="boarding_status" id="weekly" value="weekly"
+                            {% if form_data.boarding_status == 'weekly' %}checked{% endif %}>
+                        <label for="weekly">
+                            <span class="opt-icon">📅</span>
+                            <span class="opt-label">Weekly Boarder</span>
+                            <span class="opt-desc">Weekdays on campus</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+                <div class="section-label">Boarding Details (if applicable)</div>
+
+                <div class="field">
+                    <label>House / Dormitory</label>
+                    <input type="text" name="house_dormitory"
+                        value="{{ form_data.house_dormitory|default:'' }}"
+                        placeholder="e.g. Nkrumah House">
+                </div>
+
+                <div class="field">
+                    <label>Bus Route</label>
+                    <input type="text" name="bus_route"
+                        value="{{ form_data.bus_route|default:'' }}"
+                        placeholder="e.g. Tema Route 3">
+                </div>
+
+                <div class="field">
+                    <label>Locker Number</label>
+                    <input type="text" name="locker_number"
+                        value="{{ form_data.locker_number|default:'' }}"
+                        placeholder="e.g. L-042">
+                </div>
+
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'dashboard:student_enrol_step1' %}" class="btn-back">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Back
+                </a>
+                <button type="submit" class="btn-next">
+                    Next: Contact & Documents
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+</body>
+</html>

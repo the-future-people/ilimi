@@ -54,9 +54,16 @@ def teacher_portal(request):
     if not membership or membership.role != 'teacher':
         return redirect('dashboard:home')
 
+    # Get the staff profile linked to this user
+    staff_profile = None
+    try:
+        staff_profile = request.user.staff_profile
+    except Exception:
+        pass
+
     context = _base_context(request, membership)
-    # Placeholders — will be populated when academics/attendance are built
     context.update({
+        'staff_profile': staff_profile,
         'my_classes': [],
         'todays_attendance_taken': False,
     })

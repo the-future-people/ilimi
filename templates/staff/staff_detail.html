@@ -98,6 +98,18 @@
         .empty-panel h3 { font-size: 15px; font-weight: 600; color: #999; margin-bottom: 6px; }
         .empty-panel p { font-size: 13px; }
 
+        .btn-invite { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: rgba(255,255,255,0.12); color: #fff; border-radius: 10px; font-size: 13px; font-weight: 700; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap; transition: all 0.2s; }
+        .btn-invite:hover { background: rgba(255,255,255,0.2); }
+        .btn-invite:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-invite svg { width: 15px; height: 15px; }
+        .portal-active-badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(21,128,61,0.2); color: #86efac; border-radius: 10px; font-size: 13px; font-weight: 700; border: 1.5px solid rgba(21,128,61,0.3); }
+        .portal-active-badge svg { width: 15px; height: 15px; }
+        .invite-toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; background: #fff; border-radius: 14px; padding: 16px 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px; min-width: 320px; border-left: 4px solid #15803d; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .invite-toast.show { transform: translateY(0); opacity: 1; }
+        .invite-toast.error { border-left-color: #dc2626; }
+        .invite-toast-icon { font-size: 20px; flex-shrink: 0; }
+        .invite-toast-msg { font-size: 13px; color: #333; font-weight: 500; flex: 1; }
+
         @media (max-width: 1024px) { .info-layout { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) { .profile-hero { flex-direction: column; align-items: flex-start; } }
         @media (max-width: 640px) { .brand-text { display: none; } .page { padding: 16px 16px 40px; } }
@@ -170,11 +182,22 @@
             </div>
         </div>
         <div class="profile-actions">
-            <a href="#" class="btn-edit">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                Edit Profile
-            </a>
-        </div>
+    <a href="#" class="btn-edit">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Edit Profile
+    </a>
+    {% if not staff.user or not staff.user.is_phone_verified %}
+    <button class="btn-invite" id="inviteBtn" onclick="sendInvite({{ staff.pk }})">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        Send Portal Access
+    </button>
+    {% else %}
+    <div class="portal-active-badge">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Portal Active
+    </div>
+    {% endif %}
+</div>
     </div>
 
     <!-- TABS -->
@@ -382,6 +405,62 @@ function switchTab(name, btn) {
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
 }
+
+function sendInvite(staffPk) {
+    const btn = document.getElementById('inviteBtn');
+    btn.disabled = true;
+    btn.innerHTML = `
+        <svg style="animation:spin 1s linear infinite;width:15px;height:15px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Sending...
+    `;
+    fetch(`/accounts/staff/invite/${staffPk}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        showInviteToast(data.success, data.message);
+        if (data.success) {
+            btn.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Invite Sent
+            `;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:15px;height:15px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                Send Portal Access
+            `;
+        }
+    })
+    .catch(() => {
+        showInviteToast(false, 'Something went wrong. Please try again.');
+        btn.disabled = false;
+    });
+}
+
+function showInviteToast(success, message) {
+    let toast = document.getElementById('inviteToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'inviteToast';
+        toast.className = 'invite-toast';
+        toast.innerHTML = `<div class="invite-toast-icon"></div><div class="invite-toast-msg"></div>`;
+        document.body.appendChild(toast);
+    }
+    toast.querySelector('.invite-toast-icon').textContent = success ? '✅' : '❌';
+    toast.querySelector('.invite-toast-msg').textContent = message;
+    toast.className = 'invite-toast' + (success ? '' : ' error');
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+const style = document.createElement('style');
+style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
 </script>
 </body>
 </html>

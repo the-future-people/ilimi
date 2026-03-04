@@ -8,6 +8,8 @@ from apps.accounts.views import (
     register_step2,
     verify_phone,
     resend_otp,
+    send_invite,
+    staff_setup_account,
 )
 
 app_name = 'accounts'
@@ -21,4 +23,6 @@ urlpatterns = [
     path('register/school/', register_step2, name='register_step2'),
     path('verify/phone/', verify_phone, name='verify_phone'),
     path('verify/phone/resend/', resend_otp, name='resend_otp'),
+    path('staff/invite/<int:staff_pk>/', send_invite, name='send_staff_invite'),
+    path('staff/setup/<uuid:token>/', staff_setup_account, name='staff_setup_account'),
 ]

@@ -4,6 +4,22 @@ from apps.dashboard.views.staff import clear_staff_toast
 from apps.dashboard.views.portals import (
     admin_portal,
     teacher_portal,
+    teacher_classroom,
+    teacher_class_detail,
+    accountant_portal,
+    receptionist_portal,
+)
+from apps.dashboard.views.portals import (
+    admin_portal,
+    teacher_portal,
+    teacher_classroom,
+    accountant_portal,
+    receptionist_portal,
+)
+from apps.dashboard.views.portals import (
+    admin_portal,
+    teacher_classroom,
+    teacher_portal,
     accountant_portal,
     receptionist_portal,
 )
@@ -35,7 +51,10 @@ app_name = 'dashboard'
 urlpatterns = [
     path('', dashboard_home, name='home'),
     path('admin/', admin_portal, name='admin_portal'),
+    path('teacher/classroom/', teacher_classroom, name='teacher_classroom'),
     path('teacher/', teacher_portal, name='teacher_portal'),
+    path('teacher/classroom/', teacher_classroom, name='teacher_classroom'),
+    path('teacher/classroom/<int:classroom_id>/', teacher_class_detail, name='teacher_class_detail'),
     path('accountant/', accountant_portal, name='accountant_portal'),
     path('receptionist/', receptionist_portal, name='receptionist_portal'),
 

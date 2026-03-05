@@ -3,6 +3,9 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from apps.tenants.models import SchoolMember
 from apps.tenants.models import SchoolMember
+import logging
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -126,3 +129,117 @@ def receptionist_portal(request):
         'staff_present_today': 0,
     })
     return render(request, 'dashboard/portals/receptionist.html', context)
+
+# ── Teacher Classroom Landing ─────────────────────────────────────────
+@login_required(login_url='accounts:login')
+def teacher_classroom(request):
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return redirect('dashboard:home')
+
+    staff_profile = None
+    try:
+        staff_profile = request.user.staff_profile
+    except Exception:
+        pass
+
+    from apps.academics.models import SubjectAssignment
+    from apps.students.models import Student
+
+    assignments = SubjectAssignment.objects.filter(
+        teacher=membership
+    ).select_related(
+        'classroom', 'classroom__class_level',
+        'classroom__academic_year', 'subject', 'term'
+    ).order_by('classroom__class_level__order', 'classroom__section_name')
+
+    # Build a rich class list for the template
+    classroom_ids = list(assignments.values_list('classroom_id', flat=True).distinct())
+
+    # Per-classroom student count
+    from django.db.models import Count
+    classrooms_data = []
+    seen = set()
+    for a in assignments:
+        cid = a.classroom.id
+        if cid in seen:
+            continue
+        seen.add(cid)
+        student_count = Student.objects.filter(
+            current_class=a.classroom,
+            school=membership.school,
+            status='active',
+        ).count()
+        classrooms_data.append({
+            'classroom': a.classroom,
+            'student_count': student_count,
+        })
+
+    context = _base_context(request, membership)
+    context.update({
+        'staff_profile': staff_profile,
+        'classrooms_data': classrooms_data,
+        'classroom_count': len(classrooms_data),
+    })
+    return render(request, 'dashboard/portals/teacher_classroom.html', context)
+
+
+@login_required(login_url='accounts:login')
+def teacher_class_detail(request, classroom_id):
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return redirect('dashboard:home')
+
+    staff_profile = None
+    try:
+        staff_profile = request.user.staff_profile
+    except Exception:
+        pass
+
+    from apps.academics.models import SubjectAssignment, ClassRoom, Term
+    from apps.students.models import Student
+
+    # Verify this teacher is actually assigned to this classroom
+    classroom = get_object_or_404(
+        ClassRoom,
+        id=classroom_id,
+        school=membership.school,
+    )
+
+    assigned = SubjectAssignment.objects.filter(
+        teacher=membership,
+        classroom=classroom,
+    ).exists()
+
+    if not assigned:
+        return redirect('dashboard:teacher_classroom')
+
+    # Subjects this teacher teaches in this class
+    subjects = SubjectAssignment.objects.filter(
+        teacher=membership,
+        classroom=classroom,
+    ).select_related('subject', 'term').order_by('subject__name')
+
+    # Current term
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    # Student roster
+    students = Student.objects.filter(
+        current_class=classroom,
+        school=membership.school,
+        status='active',
+    ).order_by('last_name', 'first_name')
+
+    context = _base_context(request, membership)
+    context.update({
+        'staff_profile': staff_profile,
+        'classroom': classroom,
+        'subjects': subjects,
+        'current_term': current_term,
+        'students': students,
+        'student_count': students.count(),
+    })
+    return render(request, 'dashboard/portals/teacher_class_detail.html', context)

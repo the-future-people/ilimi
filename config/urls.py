@@ -23,6 +23,9 @@ urlpatterns = [
     # Tenants / school onboarding
     path('tenants/', include('apps.tenants.urls')),
 
+    # Reports
+    path('reports/', include('apps.reports.urls')),
+
     # API
     path("api/", include("config.api_urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

@@ -38,6 +38,9 @@ def admin_portal(request):
         return redirect('dashboard:home')
 
     school = membership.school
+    from apps.notifications.services.notification_service import get_unread_count
+    from apps.notifications.models import Notification
+
     context = _base_context(request, membership)
     context.update({
         'total_members': SchoolMember.objects.filter(school=school, is_active=True).count(),
@@ -48,6 +51,11 @@ def admin_portal(request):
         'recent_members': SchoolMember.objects.filter(
             school=school, is_active=True
         ).select_related('user').order_by('-id')[:5],
+        'unread_count': get_unread_count(request.user, school),
+        'notifications': Notification.objects.filter(
+            recipient=request.user,
+            school=school,
+        ).order_by('-created_at')[:10],
     })
     return render(request, 'dashboard/portals/admin.html', context)
 

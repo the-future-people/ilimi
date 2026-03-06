@@ -99,3 +99,13 @@ def get_unread_count(user, school):
         school=school,
         is_read=False,
     ).count()
+
+def mark_single_read(notification_id, user):
+    """Mark a single notification as read."""
+    try:
+        notification = Notification.objects.get(id=notification_id, recipient=user)
+        notification.is_read = True
+        notification.save()
+        return True
+    except Notification.DoesNotExist:
+        return False

@@ -1,25 +1,26 @@
 import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from apps.tenants.models import SchoolMember
-from apps.tenants.models import SchoolMember
-import logging
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from apps.tenants.models import SchoolMember
+from apps.academics.models import SubjectAssignment, ClassRoom, Term, Subject
+from apps.students.models import Student
+from apps.attendance.models import StudentAttendance, AttendanceRegister
+from apps.attendance.services.attendance_service import get_or_create_register
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
 def _get_membership(request):
-    """Helper — returns the user's active membership or None."""
     return SchoolMember.objects.filter(
         user=request.user, is_active=True
     ).select_related('school', 'branch').first()
 
 
 def _base_context(request, membership):
-    """Shared context available to all portal templates."""
     return {
         'user': request.user,
         'school': membership.school,
@@ -50,35 +51,25 @@ def admin_portal(request):
     })
     return render(request, 'dashboard/portals/admin.html', context)
 
-# ── Teacher Portal ────────────────────────────────────────────────────────
 
+# ── Teacher Portal ────────────────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def teacher_portal(request):
     membership = _get_membership(request)
     if not membership or membership.role != 'teacher':
         return redirect('dashboard:home')
 
-    # ── Staff profile ──────────────────────────────────────────────────
     staff_profile = None
     try:
         staff_profile = request.user.staff_profile
     except Exception:
         pass
 
-    # ── Assigned classes via SubjectAssignment ─────────────────────────
-    from apps.academics.models import SubjectAssignment
-    from apps.students.models import Student
-
     assignments = SubjectAssignment.objects.filter(
         teacher=membership
     ).select_related('classroom', 'subject', 'term').order_by('classroom__section_name')
 
     classroom_ids = list(assignments.values_list('classroom_id', flat=True).distinct())
-
-    assigned_classes = list(assignments.values(
-        'classroom__id',
-        'classroom__section_name',
-    ).distinct())
 
     total_students = Student.objects.filter(
         current_class__id__in=classroom_ids,
@@ -91,15 +82,15 @@ def teacher_portal(request):
     context = _base_context(request, membership)
     context.update({
         'staff_profile': staff_profile,
-        'assigned_classes': assigned_classes,
+        'assigned_classes': list(assignments.values('classroom__id', 'classroom__section_name').distinct()),
         'classroom_count': len(classroom_ids),
         'total_students': total_students,
         'subject_count': subject_count,
     })
     return render(request, 'dashboard/portals/teacher.html', context)
 
-# ── Accountant Portal ─────────────────────────────────────────────────────
 
+# ── Accountant Portal ─────────────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def accountant_portal(request):
     membership = _get_membership(request)
@@ -107,7 +98,6 @@ def accountant_portal(request):
         return redirect('dashboard:home')
 
     context = _base_context(request, membership)
-    # Placeholders — will be populated when fees are built
     context.update({
         'total_collected': 0,
         'total_outstanding': 0,
@@ -117,7 +107,6 @@ def accountant_portal(request):
 
 
 # ── Receptionist Portal ───────────────────────────────────────────────────
-
 @login_required(login_url='accounts:login')
 def receptionist_portal(request):
     membership = _get_membership(request)
@@ -131,7 +120,8 @@ def receptionist_portal(request):
     })
     return render(request, 'dashboard/portals/receptionist.html', context)
 
-# ── Teacher Classroom Landing ─────────────────────────────────────────
+
+# ── Teacher Classroom Landing ─────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def teacher_classroom(request):
     membership = _get_membership(request)
@@ -144,9 +134,6 @@ def teacher_classroom(request):
     except Exception:
         pass
 
-    from apps.academics.models import SubjectAssignment
-    from apps.students.models import Student
-
     assignments = SubjectAssignment.objects.filter(
         teacher=membership
     ).select_related(
@@ -154,11 +141,8 @@ def teacher_classroom(request):
         'classroom__academic_year', 'subject', 'term'
     ).order_by('classroom__class_level__order', 'classroom__section_name')
 
-    # Build a rich class list for the template
     classroom_ids = list(assignments.values_list('classroom_id', flat=True).distinct())
 
-    # Per-classroom student count
-    from django.db.models import Count
     classrooms_data = []
     seen = set()
     for a in assignments:
@@ -185,7 +169,7 @@ def teacher_classroom(request):
     return render(request, 'dashboard/portals/teacher_classroom.html', context)
 
 
-@login_required(login_url='accounts:login')
+# ── Teacher Class Detail ──────────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def teacher_class_detail(request, classroom_id):
     membership = _get_membership(request)
@@ -198,18 +182,7 @@ def teacher_class_detail(request, classroom_id):
     except Exception:
         pass
 
-    from apps.academics.models import SubjectAssignment, ClassRoom, Term
-    from apps.students.models import Student
-    from apps.attendance.models import StudentAttendance, AttendanceRegister
-    from apps.attendance.services.attendance_service import get_or_create_register
-    from django.utils import timezone
-
-    # Verify this teacher is actually assigned to this classroom
-    classroom = get_object_or_404(
-        ClassRoom,
-        id=classroom_id,
-        school=membership.school,
-    )
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
 
     assigned = SubjectAssignment.objects.filter(
         teacher=membership,
@@ -219,19 +192,16 @@ def teacher_class_detail(request, classroom_id):
     if not assigned:
         return redirect('dashboard:teacher_classroom')
 
-    # Subjects this teacher teaches in this class
     subjects = SubjectAssignment.objects.filter(
         teacher=membership,
         classroom=classroom,
     ).select_related('subject', 'term').order_by('subject__name')
 
-    # Current term
     current_term = Term.objects.filter(
         academic_year=classroom.academic_year,
         is_current=True,
     ).first()
 
-    # Student roster
     students = Student.objects.filter(
         current_class=classroom,
         school=membership.school,
@@ -273,25 +243,26 @@ def teacher_class_detail(request, classroom_id):
 
     context = _base_context(request, membership)
     context.update({
-    'staff_profile': staff_profile,
-    'classroom': classroom,
-    'subjects': subjects,
-    'current_term': current_term,
-    'students': students,
-    'student_count': students.count(),
-    'today': today,
-    'attendance_register': attendance_register,
-    'student_rows': student_rows,
-    'statuses': [
-        ('present', 'Present', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'),
-        ('absent', 'Absent', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'),
-        ('late', 'Late', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'),
-        ('excused', 'Excused', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'),
-    ],
-})
+        'staff_profile': staff_profile,
+        'classroom': classroom,
+        'subjects': subjects,
+        'current_term': current_term,
+        'students': students,
+        'student_count': students.count(),
+        'today': today,
+        'attendance_register': attendance_register,
+        'student_rows': student_rows,
+        'statuses': [
+            ('present', 'Present', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'),
+            ('absent', 'Absent', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>'),
+            ('late', 'Late', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'),
+            ('excused', 'Excused', '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'),
+        ],
+    })
     return render(request, 'dashboard/portals/teacher_class_detail.html', context)
 
-# ── Teacher Daily Attendance ───────────────────────────────────────────────────
+
+# ── Teacher Daily Attendance ──────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def teacher_attendance(request, classroom_id):
     membership = _get_membership(request)
@@ -304,19 +275,11 @@ def teacher_attendance(request, classroom_id):
     except Exception:
         pass
 
-    from apps.academics.models import SubjectAssignment, ClassRoom, Term
-    from apps.students.models import Student
-    from apps.attendance.models import StudentAttendance, AttendanceRegister
-    from apps.attendance.services.attendance_service import get_or_create_register
-    from django.utils import timezone
-
     classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
 
-    # Verify assignment
     if not SubjectAssignment.objects.filter(teacher=membership, classroom=classroom).exists():
         return redirect('dashboard:teacher_classroom')
 
-    # Get current term
     current_term = Term.objects.filter(
         academic_year=classroom.academic_year,
         is_current=True,
@@ -333,7 +296,6 @@ def teacher_attendance(request, classroom_id):
 
     today = timezone.localdate()
 
-    # Get or create today's register
     register, _ = get_or_create_register(
         school=membership.school,
         classroom=classroom,
@@ -342,14 +304,12 @@ def teacher_attendance(request, classroom_id):
         branch=membership.branch,
     )
 
-    # Get all active students in this class
     students = Student.objects.filter(
         current_class=classroom,
         school=membership.school,
         status='active',
     ).order_by('last_name', 'first_name')
 
-    # Get existing attendance records for today
     existing_records = StudentAttendance.objects.filter(
         student__in=students,
         date=today,
@@ -358,7 +318,6 @@ def teacher_attendance(request, classroom_id):
 
     existing_map = {r.student_id: r for r in existing_records}
 
-    # Build student list with current status
     student_rows = []
     for student in students:
         record = existing_map.get(student.id)
@@ -384,6 +343,7 @@ def teacher_attendance(request, classroom_id):
     return render(request, 'dashboard/portals/teacher_attendance.html', context)
 
 
+# ── Teacher Attendance Submit ─────────────────────────────────────────────
 @login_required(login_url='accounts:login')
 def teacher_attendance_submit(request, classroom_id):
     if request.method != 'POST':
@@ -393,9 +353,7 @@ def teacher_attendance_submit(request, classroom_id):
     if not membership or membership.role != 'teacher':
         return redirect('dashboard:home')
 
-    from apps.academics.models import ClassRoom, Term
     from apps.attendance.services.attendance_service import submit_register
-    from django.utils import timezone
     import json
 
     classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
@@ -430,6 +388,316 @@ def teacher_attendance_submit(request, classroom_id):
             'total_late': register.total_late,
             'total_excused': register.total_excused,
         })
+
+    except ValueError as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Something went wrong.'}, status=500)
+
+# ── Teacher CA Scores ─────────────────────────────────────────────────────
+@login_required(login_url='accounts:login')
+def teacher_ca_scores(request, classroom_id, subject_id):
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return redirect('dashboard:home')
+
+    staff_profile = None
+    try:
+        staff_profile = request.user.staff_profile
+    except Exception:
+        pass
+
+    from apps.academics.models import CAComponent, CAComponentType, CAScore
+    from apps.academics.services.ca_service import get_default_component_types
+
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
+    subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
+
+    if not SubjectAssignment.objects.filter(teacher=membership, classroom=classroom, subject=subject).exists():
+        return redirect('dashboard:teacher_classroom')
+
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    students = Student.objects.filter(
+        current_class=classroom,
+        school=membership.school,
+        status='active',
+    ).order_by('last_name', 'first_name')
+
+    # Components for this subject/term
+    components = CAComponent.objects.filter(
+        school=membership.school,
+        classroom=classroom,
+        subject=subject,
+        term=current_term,
+    ).select_related('component_type').order_by('date', 'name') if current_term else []
+
+    # Component types available for this school
+    component_types = get_default_component_types(membership.school)
+
+    # CA Scores
+    ca_scores = {}
+    if current_term:
+        from apps.academics.models import CAComponentScore
+        for student in students:
+            scores_qs = CAComponentScore.objects.filter(
+                student=student,
+                component__in=components,
+                school=membership.school,
+            ).select_related('component')
+            scores_map = {s.component_id: s for s in scores_qs}
+
+            ca_score_obj = CAScore.objects.filter(
+                student=student,
+                subject=subject,
+                term=current_term,
+                school=membership.school,
+            ).first()
+
+            ca_scores[student.id] = {
+                'component_scores': scores_map,
+                'class_score': float(ca_score_obj.class_score) if ca_score_obj else 0,
+                'exam_score': float(ca_score_obj.exam_score) if ca_score_obj else 0,
+                'total': float(ca_score_obj.total) if ca_score_obj else 0,
+                'grade': ca_score_obj.grade if ca_score_obj else '',
+                'locked': ca_score_obj.locked if ca_score_obj else False,
+                'submitted': ca_score_obj.submitted if ca_score_obj else False,
+            }
+
+    all_submitted = all(
+        ca_scores[s.id]['submitted'] for s in students
+    ) if students and ca_scores else False
+
+    context = _base_context(request, membership)
+    context.update({
+        'staff_profile': staff_profile,
+        'classroom': classroom,
+        'subject': subject,
+        'current_term': current_term,
+        'students': students,
+        'student_count': students.count(),
+        'components': components,
+        'component_types': component_types,
+        'ca_scores': ca_scores,
+        'all_submitted': all_submitted,
+    })
+    return render(request, 'dashboard/portals/teacher_ca_scores.html', context)
+
+
+@login_required(login_url='accounts:login')
+def teacher_ca_component_create(request, classroom_id, subject_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method.'}, status=405)
+
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return JsonResponse({'success': False, 'message': 'Unauthorised.'}, status=403)
+
+    from apps.academics.models import CAComponentType
+    from apps.academics.services.ca_service import create_ca_component
+    import json
+
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
+    subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
+
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    if not current_term:
+        return JsonResponse({'success': False, 'message': 'No active term.'}, status=400)
+
+    try:
+        data             = json.loads(request.body)
+        component_type   = get_object_or_404(CAComponentType, id=data.get('component_type_id'), school=membership.school)
+        name             = data.get('name', '').strip()
+        max_score        = data.get('max_score', 100)
+        date             = data.get('date')
+
+        if not name:
+            return JsonResponse({'success': False, 'message': 'Component name is required.'}, status=400)
+
+        component = create_ca_component(
+            school=membership.school,
+            classroom=classroom,
+            subject=subject,
+            term=current_term,
+            component_type=component_type,
+            name=name,
+            max_score=max_score,
+            date=date,
+            created_by=membership,
+            branch=membership.branch,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'component_id': component.id,
+            'name': component.name,
+            'max_score': float(component.max_score),
+            'date': str(component.date),
+            'component_type': component.component_type.name,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+@login_required(login_url='accounts:login')
+def teacher_ca_scores_save(request, classroom_id, subject_id, component_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method.'}, status=405)
+
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return JsonResponse({'success': False, 'message': 'Unauthorised.'}, status=403)
+
+    from apps.academics.models import CAComponent
+    from apps.academics.services.ca_service import save_component_scores, update_ca_score
+    import json
+
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
+    subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
+    component = get_object_or_404(CAComponent, id=component_id, school=membership.school)
+
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    if not current_term:
+        return JsonResponse({'success': False, 'message': 'No active term.'}, status=400)
+
+    try:
+        data       = json.loads(request.body)
+        score_data = data.get('scores', [])
+
+        results, errors = save_component_scores(
+            school=membership.school,
+            component=component,
+            score_data=score_data,
+            entered_by=membership,
+        )
+
+        # Recompute class scores for affected students
+        updated_scores = {}
+        for item in score_data:
+            student = Student.objects.filter(id=item['student_id'], school=membership.school).first()
+            if student:
+                ca_score = update_ca_score(
+                    school=membership.school,
+                    student=student,
+                    subject=subject,
+                    term=current_term,
+                    classroom=classroom,
+                    branch=membership.branch,
+                )
+                updated_scores[student.id] = {
+                    'class_score': float(ca_score.class_score),
+                    'exam_score': float(ca_score.exam_score),
+                    'total': float(ca_score.total),
+                    'grade': ca_score.grade,
+                }
+
+        return JsonResponse({
+            'success': True,
+            'saved': len(results),
+            'errors': errors,
+            'updated_scores': updated_scores,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+@login_required(login_url='accounts:login')
+def teacher_ca_exam_score_save(request, classroom_id, subject_id, student_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method.'}, status=405)
+
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return JsonResponse({'success': False, 'message': 'Unauthorised.'}, status=403)
+
+    from apps.academics.services.ca_service import save_exam_score
+    import json
+
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
+    subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
+    student   = get_object_or_404(Student, id=student_id, school=membership.school)
+
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    if not current_term:
+        return JsonResponse({'success': False, 'message': 'No active term.'}, status=400)
+
+    try:
+        data       = json.loads(request.body)
+        exam_score = data.get('exam_score', 0)
+
+        ca_score = save_exam_score(
+            school=membership.school,
+            student=student,
+            subject=subject,
+            term=current_term,
+            exam_score=exam_score,
+            classroom=classroom,
+            branch=membership.branch,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'exam_score': float(ca_score.exam_score),
+            'class_score': float(ca_score.class_score),
+            'total': float(ca_score.total),
+            'grade': ca_score.grade,
+        })
+
+    except ValueError as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Something went wrong.'}, status=500)
+
+
+@login_required(login_url='accounts:login')
+def teacher_ca_scores_submit(request, classroom_id, subject_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method.'}, status=405)
+
+    membership = _get_membership(request)
+    if not membership or membership.role != 'teacher':
+        return JsonResponse({'success': False, 'message': 'Unauthorised.'}, status=403)
+
+    from apps.academics.services.ca_service import submit_ca_scores
+
+    classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
+    subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
+
+    current_term = Term.objects.filter(
+        academic_year=classroom.academic_year,
+        is_current=True,
+    ).first()
+
+    if not current_term:
+        return JsonResponse({'success': False, 'message': 'No active term.'}, status=400)
+
+    try:
+        submit_ca_scores(
+            school=membership.school,
+            classroom=classroom,
+            subject=subject,
+            term=current_term,
+            submitted_by=membership,
+            branch=membership.branch,
+        )
+        return JsonResponse({'success': True, 'message': 'Scores submitted and locked successfully.'})
 
     except ValueError as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=400)

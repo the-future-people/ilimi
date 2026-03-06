@@ -281,11 +281,12 @@
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
     Attendance
 </button>
-    <button class="tab-btn disabled" id="tab-ca">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        CA Scores
-        <span class="tab-soon">Soon</span>
-    </button>
+{% for sa in subjects %}
+<a href="{% url 'dashboard:teacher_ca_scores' classroom.id sa.subject.id %}" class="tab-btn">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    CA Scores{% if subjects|length > 1 %} · {{ sa.subject.name }}{% endif %}
+</a>
+{% endfor %}
 </div>
 
     <!-- CONTENT AREA -->
@@ -360,14 +361,14 @@
             {% include 'dashboard/portals/attendance_panel.html' %}
         </div>
         <!-- CA SCORES PANEL -->
-        <div class="tab-panel" id="panel-ca">
-            <div class="coming-soon-panel">
-                <div class="coming-soon-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
-                <div class="coming-soon-title">CA Scores</div>
-                <div class="coming-soon-desc">Enter and manage continuous assessment scores for this class. Coming soon.</div>
-            </div>
-        </div>
-
+        <!-- CA SCORES PANEL -->
+<div class="tab-panel" id="panel-ca">
+    <div class="coming-soon-panel">
+        <div class="coming-soon-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+        <div class="coming-soon-title">CA Scores</div>
+        <div class="coming-soon-desc">Click the CA Scores tab above to enter scores for each subject.</div>
+    </div>
+</div>
     </div>
 </div>
 

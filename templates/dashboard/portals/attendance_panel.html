@@ -1,0 +1,288 @@
+{% load static %}
+
+{% if not current_term %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;">
+    <svg width="48" height="48" fill="none" stroke="#ddd" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <div style="font-size:15px;font-weight:700;color:#bbb;">No active term</div>
+    <div style="font-size:13px;color:#ccc;text-align:center;max-width:280px;">Please contact your administrator to set up the current term.</div>
+</div>
+
+{% elif student_rows %}
+
+<!-- REGISTER BANNER -->
+{% if attendance_register.submitted %}
+<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:12px;background:rgba(21,128,61,0.06);border:1.5px solid rgba(21,128,61,0.2);margin-bottom:16px;">
+    <div style="width:34px;height:34px;border-radius:10px;background:rgba(21,128,61,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="18" height="18" fill="none" stroke="#15803d" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <div>
+        <div style="font-size:13px;font-weight:700;color:#1a2946;">Register Submitted</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">
+            Submitted by {{ attendance_register.submitted_by.user.full_name }}
+            at {{ attendance_register.submitted_at|date:"H:i" }} —
+            {{ attendance_register.total_present }} present,
+            {{ attendance_register.total_absent }} absent,
+            {{ attendance_register.total_late }} late,
+            {{ attendance_register.total_excused }} excused
+        </div>
+    </div>
+</div>
+{% else %}
+<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:12px;background:rgba(232,160,33,0.08);border:1.5px solid rgba(232,160,33,0.25);margin-bottom:16px;">
+    <div style="width:34px;height:34px;border-radius:10px;background:rgba(232,160,33,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="18" height="18" fill="none" stroke="#b45309" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <div>
+        <div style="font-size:13px;font-weight:700;color:#1a2946;">Register Pending</div>
+        <div style="font-size:11px;color:#888;margin-top:2px;">{{ today|date:"l, d F Y" }} · {{ current_term.get_name_display }} · Mark all students then submit.</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- TOOLBAR -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;">
+    <div style="font-size:13px;font-weight:600;color:#1a2946;">
+        {{ student_count }} student{% if student_count != 1 %}s{% endif %}
+        <span style="color:#aaa;font-weight:400;">· {{ classroom.full_name }}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        {% if not attendance_register.submitted %}
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;color:#aaa;font-weight:600;">Mark all:</span>
+            <button onclick="attMarkAll('present')" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid rgba(21,128,61,0.2);background:rgba(21,128,61,0.08);color:#15803d;cursor:pointer;font-family:'DM Sans',sans-serif;">Present</button>
+            <button onclick="attMarkAll('absent')" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:1.5px solid rgba(220,38,38,0.15);background:rgba(220,38,38,0.06);color:#dc2626;cursor:pointer;font-family:'DM Sans',sans-serif;">Absent</button>
+        </div>
+        {% endif %}
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1.5px solid #efefef;border-radius:10px;background:#fafafa;width:220px;">
+            <svg width="14" height="14" fill="none" stroke="#bbb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" placeholder="Search students..." oninput="attFilter(this.value)" style="border:none;background:none;font-size:13px;font-family:'DM Sans',sans-serif;color:#1a2946;outline:none;width:100%;">
+        </div>
+    </div>
+</div>
+
+<!-- TABLE -->
+<table style="width:100%;border-collapse:collapse;" id="attTable">
+    <thead>
+        <tr>
+            <th style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:0.6px;padding:10px 14px;text-align:left;border-bottom:1.5px solid #f4f4f4;width:35%;">Student</th>
+            <th style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:0.6px;padding:10px 14px;text-align:left;border-bottom:1.5px solid #f4f4f4;">Source</th>
+            <th style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:0.6px;padding:10px 14px;text-align:left;border-bottom:1.5px solid #f4f4f4;">Status</th>
+            <th style="font-size:10px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:0.6px;padding:10px 14px;text-align:left;border-bottom:1.5px solid #f4f4f4;">Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in student_rows %}
+        <tr data-att-id="{{ row.student.id }}" data-att-name="{{ row.student.full_name|lower }}" style="border-bottom:1px solid #f8f8f8;">
+            <td style="padding:12px 14px;vertical-align:middle;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                        {% if row.student.photo %}
+                            <img src="{{ row.student.photo.url }}" style="width:100%;height:100%;object-fit:cover;" alt="">
+                        {% else %}
+                            {{ row.student.first_name|first|upper }}{{ row.student.last_name|first|upper }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div style="font-weight:600;color:#1a2946;font-size:13px;">{{ row.student.full_name }}</div>
+                        <div style="font-size:11px;color:#aaa;margin-top:1px;">{{ row.student.student_id }}</div>
+                    </div>
+                </div>
+            </td>
+            <td style="padding:12px 14px;vertical-align:middle;">
+                {% if row.source == 'fingerprint' %}
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,0.1);color:#4338ca;">
+                    <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"/></svg>
+                    Fingerprint
+                </span>
+                {% elif row.source == 'manual' %}
+                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(26,41,70,0.06);color:#666;">Manual</span>
+                {% else %}
+                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(245,158,11,0.1);color:#b45309;">Unmarked</span>
+                {% endif %}
+            </td>
+            <td style="padding:12px 14px;vertical-align:middle;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    {% for s, title, icon in statuses %}
+                    <button type="button"
+                        data-student="{{ row.student.id }}"
+                        data-status="{{ s }}"
+                        onclick="attSetStatus({{ row.student.id }}, '{{ s }}', this)"
+                        title="{{ title }}"
+                        class="att-status-btn att-{{ s }}{% if row.status == s %} att-selected-{{ s }}{% endif %}{% if row.locked %} att-locked{% endif %}"
+                        style="width:32px;height:32px;border-radius:8px;border:1.5px solid #efefef;background:#fafafa;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;{% if row.locked %}opacity:0.5;pointer-events:none;{% endif %}">
+                       {{ icon|safe }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </td>
+            <td style="padding:12px 14px;vertical-align:middle;">
+                <input type="text"
+                    class="att-remarks"
+                    data-student-id="{{ row.student.id }}"
+                    placeholder="Optional note..."
+                    value="{{ row.remarks }}"
+                    {% if row.locked or attendance_register.submitted %}disabled{% endif %}
+                    style="border:1.5px solid #efefef;border-radius:8px;padding:6px 10px;font-size:12px;font-family:'DM Sans',sans-serif;color:#1a2946;background:#fafafa;width:160px;outline:none;">
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- SUBMIT BAR -->
+<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0 0;border-top:1.5px solid #f4f4f4;margin-top:12px;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="att-count-present" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(21,128,61,0.1);color:#15803d;">✓ 0 Present</span>
+        <span id="att-count-absent" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(220,38,38,0.08);color:#dc2626;">✗ 0 Absent</span>
+        <span id="att-count-late" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(245,158,11,0.1);color:#b45309;">⏱ 0 Late</span>
+        <span id="att-count-excused" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(99,102,241,0.08);color:#4338ca;">📋 0 Excused</span>
+        <span id="att-count-unmarked" style="font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;background:rgba(0,0,0,0.05);color:#aaa;">— 0 Unmarked</span>
+    </div>
+    {% if attendance_register.submitted %}
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#15803d;font-weight:600;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Register submitted at {{ attendance_register.submitted_at|date:"H:i" }}
+    </div>
+    {% else %}
+    <button id="attSubmitBtn" onclick="attSubmitRegister()" style="display:flex;align-items:center;gap:8px;padding:10px 24px;background:#1a2946;color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Submit Register
+    </button>
+    {% endif %}
+</div>
+
+{% else %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:10px;">
+    <svg width="48" height="48" fill="none" stroke="#ddd" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <div style="font-size:15px;font-weight:700;color:#bbb;">No students enrolled</div>
+    <div style="font-size:13px;color:#ccc;">Students will appear here once enrolled into this class.</div>
+</div>
+{% endif %}
+
+<style>
+.att-status-btn { transition: all 0.15s; }
+.att-selected-present { background: rgba(21,128,61,0.1) !important; border-color: rgba(21,128,61,0.3) !important; color: #15803d !important; }
+.att-selected-absent  { background: rgba(220,38,38,0.08) !important; border-color: rgba(220,38,38,0.2) !important; color: #dc2626 !important; }
+.att-selected-late    { background: rgba(245,158,11,0.1) !important; border-color: rgba(245,158,11,0.3) !important; color: #b45309 !important; }
+.att-selected-excused { background: rgba(99,102,241,0.08) !important; border-color: rgba(99,102,241,0.2) !important; color: #4338ca !important; }
+.att-locked { opacity: 0.5 !important; pointer-events: none !important; }
+</style>
+
+<script>
+const attState = {};
+{% for row in student_rows %}
+attState[{{ row.student.id }}] = {
+    status: '{{ row.status|default:"" }}',
+    locked: {{ row.locked|yesno:"true,false" }},
+};
+{% endfor %}
+
+function attSetStatus(studentId, status, btn) {
+    if (attState[studentId] && attState[studentId].locked) return;
+    attState[studentId] = attState[studentId] || {};
+    attState[studentId].status = status;
+    const row = btn.closest('tr');
+    row.querySelectorAll('.att-status-btn').forEach(b => {
+        b.className = b.className.replace(/att-selected-\w+/g, '').trim();
+    });
+    btn.classList.add('att-selected-' + status);
+    attUpdateSummary();
+}
+
+function attMarkAll(status) {
+    Object.keys(attState).forEach(id => {
+        if (!attState[id].locked) attState[id].status = status;
+    });
+    document.querySelectorAll('#attTable tbody tr').forEach(row => {
+        const id = row.dataset.attId;
+        if (attState[id] && !attState[id].locked) {
+            row.querySelectorAll('.att-status-btn').forEach(b => {
+                b.className = b.className.replace(/att-selected-\w+/g, '').trim();
+            });
+            const target = row.querySelector(`.att-status-btn[data-status="${status}"]`);
+            if (target) target.classList.add('att-selected-' + status);
+        }
+    });
+    attUpdateSummary();
+}
+
+function attUpdateSummary() {
+    const counts = { present: 0, absent: 0, late: 0, excused: 0, '': 0 };
+    Object.values(attState).forEach(s => {
+        counts[s.status || ''] = (counts[s.status || ''] || 0) + 1;
+    });
+    document.getElementById('att-count-present').textContent = `✓ ${counts.present} Present`;
+    document.getElementById('att-count-absent').textContent = `✗ ${counts.absent} Absent`;
+    document.getElementById('att-count-late').textContent = `⏱ ${counts.late} Late`;
+    document.getElementById('att-count-excused').textContent = `📋 ${counts.excused} Excused`;
+    document.getElementById('att-count-unmarked').textContent = `— ${counts['']} Unmarked`;
+}
+
+function attFilter(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('#attTable tbody tr').forEach(row => {
+        row.style.display = row.dataset.attName.includes(q) ? '' : 'none';
+    });
+}
+
+async function attSubmitRegister() {
+    const unmarked = Object.values(attState).filter(s => !s.status).length;
+    if (unmarked > 0) {
+        attShowToast(`${unmarked} student${unmarked > 1 ? 's' : ''} still unmarked.`, 'error');
+        return;
+    }
+    const btn = document.getElementById('attSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const records = [];
+    document.querySelectorAll('#attTable tbody tr').forEach(row => {
+        const studentId = parseInt(row.dataset.attId);
+        const state = attState[studentId];
+        const remarks = row.querySelector('.att-remarks');
+        records.push({
+            student_id: studentId,
+            status: state ? state.status : 'absent',
+            remarks: remarks ? remarks.value : '',
+        });
+    });
+
+    try {
+        const response = await fetch('{% url "dashboard:teacher_attendance_submit" classroom.id %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify({ records }),
+        });
+        const data = await response.json();
+        if (data.success) {
+            attShowToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            attShowToast(data.message, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Submit Register';
+        }
+    } catch(e) {
+        attShowToast('Network error. Please try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Submit Register';
+    }
+}
+
+function attShowToast(message, type) {
+    let toast = document.getElementById('attToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'attToast';
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:12px;font-size:13px;font-weight:600;color:#fff;z-index:999;opacity:0;transform:translateY(10px);transition:all 0.3s;pointer-events:none;font-family:DM Sans,sans-serif;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.background = type === 'success' ? '#15803d' : '#dc2626';
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(10px)'; }, 4000);
+}
+
+attUpdateSummary();
+</script>

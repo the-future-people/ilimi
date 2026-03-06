@@ -6,6 +6,16 @@ from apps.dashboard.views.portals import (
     teacher_portal,
     teacher_classroom,
     teacher_class_detail,
+    teacher_attendance,
+    teacher_attendance_submit,
+    accountant_portal,
+    receptionist_portal,
+)
+from apps.dashboard.views.portals import (
+    admin_portal,
+    teacher_portal,
+    teacher_classroom,
+    teacher_class_detail,
     accountant_portal,
     receptionist_portal,
 )
@@ -81,4 +91,6 @@ urlpatterns = [
     path('admin/staff/register/submit/', staff_register_submit, name='staff_register_submit'),
     path('admin/staff/<int:pk>/', staff_detail, name='staff_detail'),
     path('admin/staff/clear-toast/', clear_staff_toast, name='clear_staff_toast'),
+    path('teacher/classroom/<int:classroom_id>/attendance/', teacher_attendance, name='teacher_attendance'),
+    path('teacher/classroom/<int:classroom_id>/attendance/submit/', teacher_attendance_submit, name='teacher_attendance_submit'),
 ]

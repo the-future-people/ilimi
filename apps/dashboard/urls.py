@@ -8,6 +8,21 @@ from apps.dashboard.views.portals import (
     teacher_class_detail,
     teacher_attendance,
     teacher_attendance_submit,
+    teacher_ca_scores,
+    teacher_ca_component_create,
+    teacher_ca_scores_save,
+    teacher_ca_exam_score_save,
+    teacher_ca_scores_submit,
+    accountant_portal,
+    receptionist_portal,
+)
+from apps.dashboard.views.portals import (
+    admin_portal,
+    teacher_portal,
+    teacher_classroom,
+    teacher_class_detail,
+    teacher_attendance,
+    teacher_attendance_submit,
     accountant_portal,
     receptionist_portal,
 )
@@ -56,6 +71,16 @@ from apps.dashboard.views.staff import (
     staff_register_submit,
     staff_detail,
 )
+from apps.dashboard.views.portals import (
+    admin_portal,
+    teacher_portal,
+    teacher_classroom,
+    teacher_class_detail,
+    teacher_attendance,
+    teacher_attendance_submit,
+    accountant_portal,
+    receptionist_portal,
+)
 app_name = 'dashboard'
 
 urlpatterns = [
@@ -93,4 +118,9 @@ urlpatterns = [
     path('admin/staff/clear-toast/', clear_staff_toast, name='clear_staff_toast'),
     path('teacher/classroom/<int:classroom_id>/attendance/', teacher_attendance, name='teacher_attendance'),
     path('teacher/classroom/<int:classroom_id>/attendance/submit/', teacher_attendance_submit, name='teacher_attendance_submit'),
+    path('teacher/classroom/<int:classroom_id>/subject/<int:subject_id>/ca-scores/', teacher_ca_scores, name='teacher_ca_scores'),
+    path('teacher/classroom/<int:classroom_id>/subject/<int:subject_id>/ca-scores/component/create/', teacher_ca_component_create, name='teacher_ca_component_create'),
+    path('teacher/classroom/<int:classroom_id>/subject/<int:subject_id>/ca-scores/component/<int:component_id>/save/', teacher_ca_scores_save, name='teacher_ca_scores_save'),
+    path('teacher/classroom/<int:classroom_id>/subject/<int:subject_id>/ca-scores/exam/<int:student_id>/save/', teacher_ca_exam_score_save, name='teacher_ca_exam_score_save'),
+    path('teacher/classroom/<int:classroom_id>/subject/<int:subject_id>/ca-scores/submit/', teacher_ca_scores_submit, name='teacher_ca_scores_submit'),
 ]

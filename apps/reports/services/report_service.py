@@ -23,19 +23,19 @@ def generate_report_cards(classroom, term, generated_by):
 
     for student in students:
         report_card, created = ReportCard.objects.get_or_create(
-            student=student,
-            classroom=classroom,
-            term=term,
-            defaults={
-                'school': school,
-                'branch': branch,
-                'generated_by': generated_by,
-                'status': ReportCard.STATUS_DRAFT,
-            }
-        )
+                    student=student,
+                    classroom=classroom,
+                    term=term,
+                    defaults={
+                        'school': school,
+                        'branch': branch or student.branch,
+                        'generated_by': generated_by,
+                        'status': ReportCard.STATUS_DRAFT,
+                    }
+                )
 
         if not created:
-            continue
+                    continue
 
         # Snapshot all CA scores for this student in this term
         ca_scores = CAScore.objects.filter(

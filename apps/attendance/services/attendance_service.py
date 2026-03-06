@@ -495,3 +495,88 @@ def get_staff_attendance_summary(staff, term):
         'attendance_percentage': attendance_percentage,
         'total_hours_worked': float(total_hours),
     }
+
+
+# ── Attendance Register ────────────────────────────────────────────────────────
+
+def get_or_create_register(school, classroom, term, date=None, branch=None):
+    """
+    Get or create an AttendanceRegister for a classroom on a given date.
+    Returns (register, created).
+    """
+    from apps.attendance.models import AttendanceRegister
+    record_date = date or timezone.localdate()
+
+    register, created = AttendanceRegister.objects.get_or_create(
+        classroom=classroom,
+        date=record_date,
+        term=term,
+        session='morning',
+        defaults={
+            'school': school,
+            'branch': branch,
+            'submitted': False,
+        }
+    )
+    return register, created
+
+
+@transaction.atomic
+def submit_register(school, classroom, term, records, submitted_by, date=None, branch=None):
+    """
+    Submit the morning register for a classroom.
+    1. Bulk marks all student attendance records
+    2. Locks the AttendanceRegister
+    3. Locks all individual StudentAttendance records for this class/date
+    4. Returns (register, bulk_results)
+
+    records format:
+    [{'student_id': 1, 'status': 'present', 'remarks': ''}, ...]
+    """
+    from apps.attendance.models import AttendanceRegister, StudentAttendance
+
+    record_date = date or timezone.localdate()
+
+    # Check register not already submitted
+    register, _ = get_or_create_register(school, classroom, term, record_date, branch)
+    if register.submitted:
+        raise ValueError("This register has already been submitted and cannot be changed.")
+
+    # Bulk mark all students
+    bulk_results = bulk_mark_student_attendance(
+        school=school,
+        term=term,
+        records=records,
+        marked_by=submitted_by,
+        branch=branch,
+        date=record_date,
+    )
+
+    # Tally counts
+    from django.db.models import Count
+    status_counts = StudentAttendance.objects.filter(
+        student__current_class=classroom,
+        date=record_date,
+        term=term,
+    ).values('status').annotate(count=Count('status'))
+
+    counts = {row['status']: row['count'] for row in status_counts}
+
+    # Lock the register
+    register.submitted = True
+    register.submitted_by = submitted_by
+    register.submitted_at = timezone.now()
+    register.total_present = counts.get('present', 0)
+    register.total_absent = counts.get('absent', 0)
+    register.total_late = counts.get('late', 0)
+    register.total_excused = counts.get('excused', 0)
+    register.save()
+
+    # Lock all individual records for this class on this date
+    StudentAttendance.objects.filter(
+        student__current_class=classroom,
+        date=record_date,
+        term=term,
+    ).update(locked=True)
+
+    return register, bulk_results

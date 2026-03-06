@@ -70,7 +70,7 @@
         .portal-card { background: #fff; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
 
         /* ── IDENTITY STRIP ── */
-        .identity-strip { padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--gold); }
+        .identity-strip { padding: 4px 6px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 3px solid var(--gold); }
         .identity-left { display: flex; align-items: center; gap: 16px; }
         .id-avatar { width: 52px; height: 52px; border-radius: 14px; background: var(--navy); color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border: 2px solid rgba(26,41,70,0.1); }
         .id-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -275,7 +275,7 @@
             <div class="domain-grid">
 
                 <!-- 1. CLASSROOM -->
-                <a href="#" class="domain-card theme-blue">
+                <a href="{% url 'dashboard:teacher_classroom' %}" class="domain-card theme-blue">
                     <img class="domain-card-illus" src="{% static 'images/illustrations/Classroom-amico.svg' %}" alt="">
                     <div class="domain-card-icon">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>

@@ -5,17 +5,29 @@ from django.conf.urls.static import static
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
-    SpectacularRedocView,
 )
 
 urlpatterns = [
+
     path('admin/', admin.site.urls),
+
+    # Public marketing website
+    path('', include('apps.public.urls')),
+
+    # Authentication
     path('accounts/', include('apps.accounts.urls')),
+
+    # Main application
     path('dashboard/', include('apps.dashboard.urls')),
-    path('', include('apps.tenants.urls')),
+
+    # Tenants / school onboarding
+    path('tenants/', include('apps.tenants.urls')),
+
+    # API
     path("api/", include("config.api_urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+
 ]
 
 if settings.DEBUG:

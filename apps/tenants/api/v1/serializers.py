@@ -153,3 +153,33 @@ class SchoolMemberInviteSerializer(serializers.Serializer):
                 "Phone number must include country code, e.g. +233XXXXXXXXX"
             )
         return value
+
+
+# ── My Memberships ────────────────────────────────────────────────────────
+
+class MyMembershipSerializer(serializers.ModelSerializer):
+    school_id      = serializers.IntegerField(source="school.id", read_only=True)
+    school_name    = serializers.CharField(source="school.name", read_only=True)
+    school_logo    = serializers.ImageField(source="school.logo", read_only=True)
+    branch_id      = serializers.IntegerField(source="branch.id", read_only=True, allow_null=True)
+    branch_name    = serializers.SerializerMethodField()
+    role_display   = serializers.CharField(source="get_role_display", read_only=True)
+
+    class Meta:
+        model = SchoolMember
+        fields = [
+            "id",
+            "school_id",
+            "school_name",
+            "school_logo",
+            "branch_id",
+            "branch_name",
+            "role",
+            "role_display",
+            "is_active",
+            "joined_at",
+        ]
+        read_only_fields = fields
+
+    def get_branch_name(self, obj):
+        return obj.branch.name if obj.branch else None

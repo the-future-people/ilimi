@@ -14,7 +14,8 @@ from .serializers import (
     StaffProfileCreateSerializer,
     StaffProfileUpdateSerializer,
 )
-
+from apps.academics.models import SubjectAssignment
+from apps.students.models import Student
 
 # ── Mixin ─────────────────────────────────────────────────────────────────
 
@@ -123,4 +124,57 @@ class StaffProfileDetailView(SchoolScopedMixin, GenericAPIView):
         return Response({
             'message': 'Staff member updated successfully.',
             **StaffProfileSerializer(staff).data,
+        })
+
+# ── My Classrooms (Teacher Portal) ────────────────────────────────────────
+
+@extend_schema(tags=["Staff"])
+class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
+    """
+    Returns the logged-in teacher's assigned classrooms, one row per
+    classroom (not per subject assignment), with real student counts.
+    Mirrors the Django teacher_classroom portal view.
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, *args, **kwargs):
+        member = self.get_member()
+
+        assignments = SubjectAssignment.objects.filter(
+            teacher=member
+        ).select_related(
+            'classroom', 'classroom__class_level',
+            'classroom__academic_year', 'subject', 'term'
+        )
+
+        classroom_map = {}
+        for a in assignments:
+            cid = a.classroom.id
+            if cid not in classroom_map:
+                student_count = Student.objects.filter(
+                    current_class=a.classroom,
+                    school=member.school,
+                    status='active',
+                ).count()
+
+                classroom_map[cid] = {
+                    'id': a.classroom.id,
+                    'full_name': a.classroom.full_name,
+                    'class_level': a.classroom.class_level.display_name,
+                    'academic_year': a.classroom.academic_year.name,
+                    'student_count': student_count,
+                    'subjects': [],
+                }
+
+            classroom_map[cid]['subjects'].append({
+                'id': a.subject.id,
+                'name': a.subject.name,
+            })
+
+        classrooms = list(classroom_map.values())
+
+        return Response({
+            'classrooms': classrooms,
+            'count': len(classrooms),
         })

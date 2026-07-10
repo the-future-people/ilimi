@@ -8,6 +8,8 @@ from drf_spectacular.utils import extend_schema
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.teachers.models import StaffProfile
+from apps.academics.models import SubjectAssignment
+from apps.students.models import Student
 from .serializers import (
     StaffProfileSerializer,
     StaffProfileListSerializer,
@@ -123,4 +125,101 @@ class StaffProfileDetailView(SchoolScopedMixin, GenericAPIView):
         return Response({
             'message': 'Staff member updated successfully.',
             **StaffProfileSerializer(staff).data,
+        })
+
+
+# ── Current Term for Classroom ────────────────────────────────────────────
+
+@extend_schema(tags=["Staff"])
+class ClassroomCurrentTermView(SchoolScopedMixin, GenericAPIView):
+    """
+    Returns the current term for a given classroom's academic year.
+    Used by the teacher portal to know which term to mark attendance for.
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, classroom_id, *args, **kwargs):
+        from apps.academics.models import ClassRoom, Term
+
+        school = self.get_school()
+
+        try:
+            classroom = ClassRoom.objects.select_related('academic_year').get(
+                id=classroom_id, school=school
+            )
+        except ClassRoom.DoesNotExist:
+            return Response({'message': 'Classroom not found.'}, status=404)
+
+        term = Term.objects.filter(
+            academic_year=classroom.academic_year, is_current=True
+        ).first()
+
+        if not term:
+            return Response({
+                'term': None,
+                'message': 'No active term found for this classroom.',
+            })
+
+        return Response({
+            'term': {
+                'id': term.id,
+                'name': term.name,
+                'name_display': term.get_name_display(),
+                'academic_year': classroom.academic_year.name,
+            }
+        })
+
+
+# ── My Classrooms (Teacher Portal) ────────────────────────────────────────
+
+@extend_schema(tags=["Staff"])
+class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
+    """
+    Returns the logged-in teacher's assigned classrooms, one row per
+    classroom (not per subject assignment), with real student counts.
+    Mirrors the Django teacher_classroom portal view.
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, *args, **kwargs):
+        member = self.get_member()
+
+        assignments = SubjectAssignment.objects.filter(
+            teacher=member
+        ).select_related(
+            'classroom', 'classroom__class_level',
+            'classroom__academic_year', 'subject', 'term'
+        )
+
+        classroom_map = {}
+        for a in assignments:
+            cid = a.classroom.id
+            if cid not in classroom_map:
+                student_count = Student.objects.filter(
+                    current_class=a.classroom,
+                    school=member.school,
+                    status='active',
+                ).count()
+
+                classroom_map[cid] = {
+                    'id': a.classroom.id,
+                    'full_name': a.classroom.full_name,
+                    'class_level': a.classroom.class_level.display_name,
+                    'academic_year': a.classroom.academic_year.name,
+                    'student_count': student_count,
+                    'subjects': [],
+                }
+
+            classroom_map[cid]['subjects'].append({
+                'id': a.subject.id,
+                'name': a.subject.name,
+            })
+
+        classrooms = list(classroom_map.values())
+
+        return Response({
+            'classrooms': classrooms,
+            'count': len(classrooms),
         })

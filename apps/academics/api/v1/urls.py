@@ -10,6 +10,14 @@ from .views import (
     SubjectDetailView,
     SubjectAssignmentListCreateView,
 )
+from .ca_views import (
+    CAComponentTypeListView,
+    CAComponentListCreateView,
+    CAComponentScoreBulkSaveView,
+    CAScoreListView,
+    CAExamScoreSaveView,
+    CAScoresSubmitView,
+)
 
 urlpatterns = [
     # Academic Years
@@ -32,4 +40,12 @@ urlpatterns = [
 
     # Subject Assignments
     path('assignments/', SubjectAssignmentListCreateView.as_view(), name='assignment-list'),
+
+    # CA Scores
+    path('ca-component-types/', CAComponentTypeListView.as_view(), name='ca-component-type-list'),
+    path('ca-components/', CAComponentListCreateView.as_view(), name='ca-component-list-create'),
+    path('ca-components/<int:component_id>/scores/', CAComponentScoreBulkSaveView.as_view(), name='ca-component-scores-save'),
+    path('ca-scores/', CAScoreListView.as_view(), name='ca-score-list'),
+    path('ca-scores/exam/<int:student_id>/', CAExamScoreSaveView.as_view(), name='ca-exam-score-save'),
+    path('ca-scores/submit/', CAScoresSubmitView.as_view(), name='ca-scores-submit'),
 ]

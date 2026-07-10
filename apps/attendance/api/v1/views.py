@@ -334,6 +334,7 @@ class StudentAttendanceListCreateView(SchoolScopedMixin, GenericAPIView):
         date = request.query_params.get('date')
         status_filter = request.query_params.get('status')
         branch_id = request.query_params.get('branch')
+        classroom_id = request.query_params.get('classroom')
         search = request.query_params.get('search')
 
         if student_id:
@@ -346,6 +347,8 @@ class StudentAttendanceListCreateView(SchoolScopedMixin, GenericAPIView):
             qs = qs.filter(status=status_filter)
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
+        if classroom_id:
+            qs = qs.filter(student__current_class_id=classroom_id)
         if search:
             qs = (
                 qs.filter(student__first_name__icontains=search) |

@@ -327,3 +327,32 @@ class SubjectAssignmentListCreateView(SchoolScopedMixin, GenericAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+@extend_schema(tags=["Academics"])
+class MySchoolClassroomsView(SchoolScopedMixin, GenericAPIView):
+    """
+    Returns all active classrooms for the school's current academic year,
+    in one call. Used for admin filters/dropdowns where a specific
+    academic year isn't already known.
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = ClassRoomSerializer
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+
+        current_year = AcademicYear.objects.filter(school=school, is_current=True).first()
+        if not current_year:
+            return Response({'classrooms': [], 'count': 0, 'academic_year': None})
+
+        classrooms = ClassRoom.objects.filter(
+            school=school, academic_year=current_year, is_active=True
+        ).select_related('class_level').order_by('class_level__order', 'section_name')
+
+        serializer = ClassRoomSerializer(classrooms, many=True)
+        return Response({
+            'classrooms': serializer.data,
+            'count': classrooms.count(),
+            'academic_year': current_year.name,
+        })

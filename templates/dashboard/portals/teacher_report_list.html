@@ -1,0 +1,271 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Cards · {{ classroom }} · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root {
+            --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72;
+            --gold: #e8a021; --gold-light: #f5c05a;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* HEADER */
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .user-chip { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; background: rgba(255,255,255,0.08); border-radius: 50px; cursor: pointer; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--navy); }
+        .user-info .user-name { font-size: 13px; font-weight: 600; color: #fff; }
+        .user-info .user-role { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* BREADCRUMB */
+        .breadcrumb { max-width: 1280px; margin: 0 auto; padding: 18px 40px 0; display: flex; align-items: center; gap: 8px; }
+        .breadcrumb a { font-size: 12px; color: #888; text-decoration: none; }
+        .breadcrumb a:hover { color: var(--navy); }
+        .breadcrumb span { font-size: 12px; color: #bbb; }
+        .breadcrumb .current { font-size: 12px; color: var(--navy); font-weight: 600; }
+
+        /* PAGE HEADER */
+        .page-header { max-width: 1280px; margin: 0 auto; padding: 24px 40px 0; display: flex; align-items: flex-start; justify-content: space-between; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--navy); }
+        .page-meta { display: flex; align-items: center; gap: 24px; margin-top: 10px; }
+        .meta-item { display: flex; flex-direction: column; }
+        .meta-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; }
+        .meta-value { font-size: 14px; font-weight: 600; color: var(--navy); margin-top: 2px; }
+        .meta-divider { width: 1px; height: 32px; background: #e0e0e0; }
+
+        /* SUBMIT BUTTON */
+        .btn-submit { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--gold); color: var(--navy); border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn-submit:hover { background: var(--gold-light); }
+        .btn-submit:disabled { background: #ccc; color: #888; cursor: not-allowed; }
+
+        /* MAIN */
+        .main { max-width: 1280px; margin: 0 auto; padding: 32px 40px; }
+
+        /* STATUS BAR */
+        .status-bar { background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .status-bar-left { display: flex; align-items: center; gap: 16px; }
+        .status-counts { display: flex; align-items: center; gap: 20px; }
+        .count-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #555; }
+        .count-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .count-dot.draft { background: #aaa; }
+        .count-dot.remarked { background: var(--gold); }
+        .count-dot.submitted { background: #22c55e; }
+
+        /* STUDENT GRID */
+        .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+        .student-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1.5px solid #f0f0f0; transition: box-shadow 0.2s, border-color 0.2s; text-decoration: none; display: block; }
+        .student-card:hover { box-shadow: 0 4px 16px rgba(26,41,70,0.1); border-color: var(--gold); }
+        .card-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+        .student-avatar { width: 44px; height: 44px; border-radius: 12px; background: var(--navy); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; flex-shrink: 0; }
+        .student-name { font-size: 15px; font-weight: 700; color: var(--navy); }
+        .student-id { font-size: 11px; color: #aaa; margin-top: 2px; }
+        .card-stats { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .stat-pill { background: #f5f5f5; border-radius: 6px; padding: 4px 10px; font-size: 11px; color: #555; font-weight: 500; }
+        .card-footer { display: flex; align-items: center; justify-content: space-between; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .status-badge.draft { background: #f5f5f5; color: #888; }
+        .status-badge.remarked { background: rgba(232,160,33,0.12); color: #b07d10; }
+        .status-badge.submitted { background: rgba(34,197,94,0.1); color: #16a34a; }
+        .preview-link { font-size: 12px; color: var(--gold); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+        /* EMPTY STATE */
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--navy); margin-bottom: 8px; }
+        .empty-text { font-size: 14px; color: #888; }
+
+        /* TOAST */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; display: flex; align-items: center; gap: 10px; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #22c55e; }
+        .toast.error { border-left: 4px solid #ef4444; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:teacher_portal' %}" class="header-brand">
+            <img src="{% static 'images/ilimi_logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <div class="header-right">
+            <div class="user-chip">
+                <div class="user-avatar">{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ request.user.first_name }} {{ request.user.last_name }}</div>
+                    <div class="user-role">Teacher</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:teacher_portal' %}">My Portal</a>
+    <span>›</span>
+    <a href="{% url 'dashboard:teacher_classroom' %}">Classroom</a>
+    <span>›</span>
+    <a href="{% url 'dashboard:teacher_class_detail' classroom.id %}">{{ classroom }}</a>
+    <span>›</span>
+    <span class="current">Report Cards</span>
+</div>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div>
+        <div class="page-title">{{ classroom }} — Report Cards</div>
+        <div class="page-meta">
+            <div class="meta-item">
+                <span class="meta-label">Term</span>
+                <span class="meta-value">{{ term }}</span>
+            </div>
+            <div class="meta-divider"></div>
+            <div class="meta-item">
+                <span class="meta-label">Students</span>
+                <span class="meta-value">{{ report_cards|length }}</span>
+            </div>
+        </div>
+    </div>
+    {% if report_cards and not all_submitted %}
+    <button class="btn-submit" id="submitBtn" onclick="submitAllReports()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+        Submit All for Evaluation
+    </button>
+    {% elif all_submitted %}
+    <button class="btn-submit" disabled>
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+        Submitted for Evaluation
+    </button>
+    {% endif %}
+</div>
+
+<!-- MAIN -->
+<main class="main">
+
+    <!-- STATUS BAR -->
+    {% if report_cards %}
+    <div class="status-bar">
+        <div class="status-bar-left">
+            <div class="status-counts">
+                <div class="count-item">
+                    <div class="count-dot draft"></div>
+                    {{ report_cards|length }} Total
+                </div>
+                <div class="count-item">
+                    <div class="count-dot remarked"></div>
+                    {% with remarked_count=0 %}
+                    Remarks Added
+                    {% endwith %}
+                </div>
+                <div class="count-item">
+                    <div class="count-dot submitted"></div>
+                    {% if all_submitted %}All Submitted{% else %}Pending Submission{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- STUDENT GRID -->
+    {% if report_cards %}
+    <div class="student-grid">
+        {% for rc in report_cards %}
+        <a href="{% url 'teacher_report_preview' rc.id %}" class="student-card">
+            <div class="card-top">
+                <div class="student-avatar">
+                    {{ rc.student.first_name|slice:":1" }}{{ rc.student.last_name|slice:":1" }}
+                </div>
+                <div>
+                    <div class="student-name">{{ rc.student.first_name }} {{ rc.student.last_name }}</div>
+                    <div class="student-id">{{ rc.student.student_id }}</div>
+                </div>
+            </div>
+            <div class="card-stats">
+                <span class="stat-pill">{{ rc.entries.count }} Subjects</span>
+                {% if rc.remark and rc.remark.remark %}
+                <span class="stat-pill">Remark Added</span>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <span class="status-badge {{ rc.status }}">
+                    {% if rc.status == 'draft' %}⬤ Draft
+                    {% elif rc.status == 'submitted' %}⬤ Submitted
+                    {% elif rc.status == 'approved' %}⬤ Approved
+                    {% elif rc.status == 'released' %}⬤ Released
+                    {% endif %}
+                </span>
+                <span class="preview-link">Preview →</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">No report cards yet</div>
+        <div class="empty-text">Report cards will appear here once generated.</div>
+    </div>
+    {% endif %}
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.className = 'toast', 3000);
+}
+
+function submitAllReports() {
+    if (!confirm('Submit all report cards for admin evaluation? This cannot be undone.')) return;
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    fetch("{% url 'teacher_report_submit' classroom.id term.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Report cards submitted for evaluation.');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Something went wrong.', 'error');
+            btn.disabled = false;
+        }
+    })
+    .catch(() => {
+        showToast('Network error.', 'error');
+        btn.disabled = false;
+    });
+}
+</script>
+
+</body>
+</html>

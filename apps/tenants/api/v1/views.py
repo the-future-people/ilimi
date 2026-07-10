@@ -16,7 +16,9 @@ from .serializers import (
     BranchCreateSerializer,
     SchoolMemberSerializer,
     SchoolMemberInviteSerializer,
+    MyMembershipSerializer,
 )
+
 
 
 # ── Mixin ─────────────────────────────────────────────────────────────────
@@ -30,7 +32,57 @@ class SchoolScopedMixin:
             raise NotFound("No school found for your account.")
         return member.school
 
+# ── My Memberships ───────────────────────────────────────────────────────
 
+@extend_schema(tags=["Schools"])
+class MyMembershipsView(GenericAPIView):
+    """
+    Returns every active SchoolMember record for the logged-in user,
+    across every school they belong to. Used by the frontend to determine
+    which school/role context to operate in — supports users who have
+    multiple roles across multiple schools (e.g. teacher at one school,
+    parent at another).
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = MyMembershipSerializer
+
+    def get(self, request, *args, **kwargs):
+        memberships = SchoolMember.objects.filter(
+            user=request.user, is_active=True
+        ).select_related("school", "branch")
+
+        serializer = MyMembershipSerializer(memberships, many=True)
+        return Response({
+            "memberships": serializer.data,
+            "count": memberships.count(),
+        })
+
+# ── My Memberships ───────────────────────────────────────────────────────
+
+@extend_schema(tags=["Schools"])
+class MyMembershipsView(GenericAPIView):
+    """
+    Returns every active SchoolMember record for the logged-in user,
+    across every school they belong to. Used by the frontend to determine
+    which school/role context to operate in — supports users who have
+    multiple roles across multiple schools (e.g. teacher at one school,
+    parent at another).
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = MyMembershipSerializer
+
+    def get(self, request, *args, **kwargs):
+        memberships = SchoolMember.objects.filter(
+            user=request.user, is_active=True
+        ).select_related("school", "branch")
+
+        serializer = MyMembershipSerializer(memberships, many=True)
+        return Response({
+            "memberships": serializer.data,
+            "count": memberships.count(),
+        })
 # ── School ────────────────────────────────────────────────────────────────
 
 @extend_schema(tags=["Schools"])

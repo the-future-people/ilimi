@@ -1,0 +1,371 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Card · {{ report_card.student }} · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root {
+            --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72;
+            --gold: #e8a021; --gold-light: #f5c05a;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* HEADER */
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .user-chip { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; background: rgba(255,255,255,0.08); border-radius: 50px; cursor: pointer; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--navy); }
+        .user-info .user-name { font-size: 13px; font-weight: 600; color: #fff; }
+        .user-info .user-role { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* BREADCRUMB */
+        .breadcrumb { max-width: 1280px; margin: 0 auto; padding: 18px 40px 0; display: flex; align-items: center; gap: 8px; }
+        .breadcrumb a { font-size: 12px; color: #888; text-decoration: none; }
+        .breadcrumb a:hover { color: var(--navy); }
+        .breadcrumb span { font-size: 12px; color: #bbb; }
+        .breadcrumb .current { font-size: 12px; color: var(--navy); font-weight: 600; }
+
+        /* NAVIGATION BAR */
+        .nav-bar { max-width: 1280px; margin: 0 auto; padding: 20px 40px 0; display: flex; align-items: center; justify-content: space-between; }
+        .nav-counter { font-size: 13px; color: #888; }
+        .nav-counter strong { color: var(--navy); }
+        .nav-buttons { display: flex; align-items: center; gap: 10px; }
+        .nav-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid #e0e0e0; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: var(--navy); cursor: pointer; text-decoration: none; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+        /* MAIN LAYOUT */
+        .main { max-width: 1280px; margin: 0 auto; padding: 24px 40px 60px; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+
+        /* REPORT CARD PREVIEW */
+        .report-card-wrap { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
+
+        /* REPORT CARD HEADER */
+        .rc-header { background: var(--navy); padding: 32px 40px; display: flex; align-items: center; justify-content: space-between; }
+        .rc-school-info { color: #fff; }
+        .rc-school-name { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; }
+        .rc-school-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; letter-spacing: 0.5px; }
+        .rc-title-block { text-align: right; }
+        .rc-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gold); font-weight: 700; }
+        .rc-term { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+        /* STUDENT INFO STRIP */
+        .rc-student-strip { background: #f8f9fc; border-bottom: 1px solid #eee; padding: 20px 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .rc-info-item label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px; }
+        .rc-info-item span { font-size: 13px; font-weight: 600; color: var(--navy); }
+
+        /* GRADES TABLE */
+        .rc-body { padding: 32px 40px; }
+        .rc-section-title { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+        .grades-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+        .grades-table th { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 12px; text-align: left; border-bottom: 2px solid #f0f0f0; }
+        .grades-table td { padding: 12px 12px; font-size: 13px; color: #333; border-bottom: 1px solid #f5f5f5; }
+        .grades-table tr:last-child td { border-bottom: none; }
+        .grades-table tr:hover td { background: #fafafa; }
+        .subject-name { font-weight: 600; color: var(--navy); }
+        .grade-badge { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 28px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+        .grade-a { background: rgba(34,197,94,0.1); color: #16a34a; }
+        .grade-b { background: rgba(59,130,246,0.1); color: #1d4ed8; }
+        .grade-c { background: rgba(234,179,8,0.1); color: #a16207; }
+        .grade-d { background: rgba(249,115,22,0.1); color: #c2410c; }
+        .grade-f { background: rgba(239,68,68,0.1); color: #dc2626; }
+
+        /* ATTENDANCE SUMMARY */
+        .attendance-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 32px; }
+        .att-item { background: #f8f9fc; border-radius: 10px; padding: 14px 16px; text-align: center; }
+        .att-value { font-size: 22px; font-weight: 700; color: var(--navy); }
+        .att-label { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+        /* REMARKS SECTION */
+        .remarks-section { border-top: 2px solid #f0f0f0; padding-top: 28px; margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .remark-box { }
+        .remark-label { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .remark-content { background: #f8f9fc; border-radius: 10px; padding: 14px 16px; min-height: 80px; font-size: 13px; color: #444; line-height: 1.6; }
+        .remark-content.pending { color: #bbb; font-style: italic; }
+
+        /* SIDEBAR */
+        .sidebar { display: flex; flex-direction: column; gap: 16px; }
+        .sidebar-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .sidebar-card-title { font-size: 12px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+
+        /* REMARK FORM */
+        .remark-textarea { width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 12px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--navy); resize: vertical; min-height: 120px; outline: none; transition: border-color 0.2s; }
+        .remark-textarea:focus { border-color: var(--gold); }
+        .btn-save-remark { width: 100%; margin-top: 10px; padding: 11px; background: var(--navy); color: #fff; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-save-remark:hover { background: var(--navy-light); }
+
+        /* SCORE SUMMARY */
+        .score-summary-list { display: flex; flex-direction: column; gap: 10px; }
+        .score-row { display: flex; align-items: center; justify-content: space-between; }
+        .score-subject { font-size: 13px; color: #555; }
+        .score-total { font-size: 13px; font-weight: 700; color: var(--navy); }
+
+        /* STATUS INDICATOR */
+        .status-indicator { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+        .status-indicator.draft { background: #f5f5f5; color: #888; }
+        .status-indicator.submitted { background: rgba(34,197,94,0.1); color: #16a34a; }
+        .status-indicator.approved { background: rgba(59,130,246,0.1); color: #1d4ed8; }
+        .status-indicator.released { background: rgba(232,160,33,0.1); color: #b07d10; }
+
+        /* TOAST */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; display: flex; align-items: center; gap: 10px; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #22c55e; }
+        .toast.error { border-left: 4px solid #ef4444; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:teacher_portal' %}" class="header-brand">
+            <img src="{% static 'images/ilimi_logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <div class="header-right">
+            <div class="user-chip">
+                <div class="user-avatar">{{ request.user.first_name|slice:":1" }}{{ request.user.last_name|slice:":1" }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ request.user.first_name }} {{ request.user.last_name }}</div>
+                    <div class="user-role">Teacher</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:teacher_portal' %}">My Portal</a>
+    <span>›</span>
+    <a href="{% url 'dashboard:teacher_classroom' %}">Classroom</a>
+    <span>›</span>
+    <a href="{% url 'dashboard:teacher_class_detail' report_card.classroom.id %}">{{ report_card.classroom }}</a>
+    <span>›</span>
+    <a href="{% url 'teacher_report_student_list' report_card.classroom.id report_card.term.id %}">Report Cards</a>
+    <span>›</span>
+    <span class="current">{{ report_card.student.first_name }} {{ report_card.student.last_name }}</span>
+</div>
+
+<!-- NAVIGATION BAR -->
+<div class="nav-bar">
+    <div class="nav-counter">
+        Student <strong>{{ current_index }}</strong> of <strong>{{ total }}</strong>
+    </div>
+    <div class="nav-buttons">
+        <a href="{% if prev_id %}{% url 'teacher_report_preview' prev_id %}{% else %}#{% endif %}"
+           class="nav-btn {% if not prev_id %}disabled{% endif %}">
+            ← Previous
+        </a>
+        <a href="{% if next_id %}{% url 'teacher_report_preview' next_id %}{% else %}#{% endif %}"
+           class="nav-btn {% if not next_id %}disabled{% endif %}">
+            Next →
+        </a>
+    </div>
+</div>
+
+<!-- MAIN -->
+<main class="main">
+
+    <!-- REPORT CARD PREVIEW -->
+    <div class="report-card-wrap">
+
+        <!-- RC HEADER -->
+        <div class="rc-header">
+            <div class="rc-school-info">
+                <div class="rc-school-name">{{ report_card.school.name }}</div>
+                <div class="rc-school-sub">{{ report_card.branch.name }} · {{ report_card.classroom }}</div>
+            </div>
+            <div class="rc-title-block">
+                <div class="rc-title">Student Report Card</div>
+                <div class="rc-term">{{ report_card.term }}</div>
+            </div>
+        </div>
+
+        <!-- STUDENT INFO STRIP -->
+        <div class="rc-student-strip">
+            <div class="rc-info-item">
+                <label>Full Name</label>
+                <span>{{ report_card.student.first_name }} {{ report_card.student.middle_name }} {{ report_card.student.last_name }}</span>
+            </div>
+            <div class="rc-info-item">
+                <label>Student ID</label>
+                <span>{{ report_card.student.student_id }}</span>
+            </div>
+            <div class="rc-info-item">
+                <label>Class</label>
+                <span>{{ report_card.classroom }}</span>
+            </div>
+            <div class="rc-info-item">
+                <label>Academic Year</label>
+                <span>{{ report_card.term.academic_year }}</span>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="rc-body">
+
+            <!-- GRADES TABLE -->
+            <div class="rc-section-title">Academic Performance</div>
+            <table class="grades-table">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Class Score /30</th>
+                        <th>Exam Score /70</th>
+                        <th>Total /100</th>
+                        <th>Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td class="subject-name">{{ entry.subject.name }}</td>
+                        <td>{{ entry.class_score }}</td>
+                        <td>{{ entry.exam_score }}</td>
+                        <td><strong>{{ entry.total }}</strong></td>
+                        <td>
+                            <span class="grade-badge
+                                {% if entry.grade == 'A1' or entry.grade == 'B2' or entry.grade == 'B3' %}grade-a
+                                {% elif entry.grade == 'C4' or entry.grade == 'C5' or entry.grade == 'C6' %}grade-c
+                                {% elif entry.grade == 'D7' or entry.grade == 'E8' %}grade-d
+                                {% else %}grade-f{% endif %}">
+                                {{ entry.grade }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align:center; color:#bbb; padding: 24px;">No subject scores recorded.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- REMARKS -->
+            <div class="remarks-section">
+                <div class="remark-box">
+                    <div class="remark-label">Form Teacher's Remark</div>
+                    <div class="remark-content {% if not remark or not remark.remark %}pending{% endif %}">
+                        {% if remark and remark.remark %}
+                            {{ remark.remark }}
+                        {% else %}
+                            Remark not yet added.
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="remark-box">
+                    <div class="remark-label">Head Teacher's Comment</div>
+                    <div class="remark-content pending">
+                        {% if report_card.head_comment %}
+                            {{ report_card.head_comment }}
+                        {% else %}
+                            Pending head teacher's comment.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+        <!-- STATUS -->
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">Report Status</div>
+            <div class="status-indicator {{ report_card.status }}">
+                {% if report_card.status == 'draft' %}📝 Draft
+                {% elif report_card.status == 'submitted' %}📤 Submitted for Evaluation
+                {% elif report_card.status == 'approved' %}✅ Approved
+                {% elif report_card.status == 'released' %}🎓 Released to Parents
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- REMARK FORM -->
+        {% if report_card.status == 'draft' %}
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">Form Teacher's Remark</div>
+            <textarea class="remark-textarea" id="remarkInput" placeholder="Write your remark for this student...">{% if remark %}{{ remark.remark }}{% endif %}</textarea>
+            <button class="btn-save-remark" onclick="saveRemark()">Save Remark</button>
+        </div>
+        {% endif %}
+
+        <!-- SCORE SUMMARY -->
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">Score Summary</div>
+            <div class="score-summary-list">
+                {% for entry in entries %}
+                <div class="score-row">
+                    <span class="score-subject">{{ entry.subject.name }}</span>
+                    <span class="score-total">{{ entry.total }}/100</span>
+                </div>
+                {% empty %}
+                <div style="font-size:13px; color:#bbb;">No scores yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.className = 'toast', 3000);
+}
+
+function saveRemark() {
+    const remark = document.getElementById('remarkInput').value.trim();
+    if (!remark) {
+        showToast('Please write a remark before saving.', 'error');
+        return;
+    }
+
+    fetch("{% url 'teacher_report_save_remark' report_card.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ remark: remark }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Remark saved successfully.');
+            // Update the preview panel
+            const previewRemark = document.querySelector('.remark-content');
+            if (previewRemark) {
+                previewRemark.textContent = remark;
+                previewRemark.classList.remove('pending');
+            }
+        } else {
+            showToast('Failed to save remark.', 'error');
+        }
+    })
+    .catch(() => showToast('Network error.', 'error'));
+}
+</script>
+
+</body>
+</html>

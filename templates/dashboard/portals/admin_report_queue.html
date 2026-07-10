@@ -1,0 +1,284 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Cards Queue · {{ school.name }}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        :root {
+            --navy: #1a2946; --navy-deep: #111c30; --navy-light: #2e4a72;
+            --gold: #e8a021; --gold-light: #f5c05a;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: #f0f2f5; min-height: 100vh; }
+
+        /* HEADER */
+        .header { background: var(--navy); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); border-bottom: 4px solid var(--gold); }
+        .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .header-brand img { width: 38px; height: 38px; object-fit: contain; }
+        .brand-text .name { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-text .tagline { font-size: 9px; color: rgba(255,255,255,0.4); letter-spacing: 1.5px; text-transform: uppercase; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .notif-btn { position: relative; width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.08); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .notif-btn:hover { background: rgba(255,255,255,0.14); }
+        .notif-btn svg { width: 18px; height: 18px; color: rgba(255,255,255,0.75); }
+        .notif-badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); border: 2px solid var(--navy); }
+        .user-chip { display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; background: rgba(255,255,255,0.08); border-radius: 50px; cursor: pointer; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--navy); }
+        .user-info .user-name { font-size: 13px; font-weight: 600; color: #fff; }
+        .user-info .user-role { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* NOTIFICATION DROPDOWN */
+        .notif-wrap { position: relative; }
+        .notif-dropdown { display: none; position: absolute; top: calc(100% + 8px); right: 0; width: 320px; background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.14); z-index: 200; overflow: hidden; }
+        .notif-dropdown.open { display: block; }
+        .notif-header { padding: 16px 18px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+        .notif-header-title { font-size: 13px; font-weight: 700; color: var(--navy); }
+        .notif-mark-read { font-size: 11px; color: var(--gold); font-weight: 600; cursor: pointer; background: none; border: none; font-family: 'DM Sans', sans-serif; }
+        .notif-list { max-height: 300px; overflow-y: auto; }
+        .notif-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #fafafa; }
+        .notif-item.unread { background: rgba(232,160,33,0.04); }
+        .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-top: 5px; flex-shrink: 0; }
+        .notif-dot.read { background: #ddd; }
+        .notif-text p { font-size: 12px; color: #444; line-height: 1.5; }
+        .notif-text span { font-size: 10px; color: #bbb; margin-top: 3px; display: block; }
+        .notif-empty { padding: 32px; text-align: center; font-size: 13px; color: #bbb; }
+
+        /* BREADCRUMB */
+        .breadcrumb { max-width: 1280px; margin: 0 auto; padding: 18px 40px 0; display: flex; align-items: center; gap: 8px; }
+        .breadcrumb a { font-size: 12px; color: #888; text-decoration: none; }
+        .breadcrumb a:hover { color: var(--navy); }
+        .breadcrumb span { font-size: 12px; color: #bbb; }
+        .breadcrumb .current { font-size: 12px; color: var(--navy); font-weight: 600; }
+
+        /* PAGE HEADER */
+        .page-header { max-width: 1280px; margin: 0 auto; padding: 24px 40px 0; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--navy); }
+        .page-subtitle { font-size: 14px; color: #888; margin-top: 6px; }
+
+        /* MAIN */
+        .main { max-width: 1280px; margin: 0 auto; padding: 32px 40px; }
+
+        /* QUEUE TABLE */
+        .queue-card { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); overflow: hidden; }
+        .queue-table { width: 100%; border-collapse: collapse; }
+        .queue-table th { font-size: 11px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; padding: 14px 20px; text-align: left; border-bottom: 2px solid #f0f0f0; background: #fafafa; }
+        .queue-table td { padding: 16px 20px; font-size: 13px; color: #333; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+        .queue-table tr:last-child td { border-bottom: none; }
+        .queue-table tr:hover td { background: #fafafa; }
+        .class-name { font-weight: 700; color: var(--navy); font-size: 14px; }
+        .term-name { font-size: 12px; color: #888; margin-top: 2px; }
+
+        /* PROGRESS BAR */
+        .progress-wrap { display: flex; align-items: center; gap: 10px; }
+        .progress-bar { flex: 1; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; background: var(--gold); transition: width 0.3s; }
+        .progress-fill.complete { background: #22c55e; }
+        .progress-label { font-size: 11px; color: #888; white-space: nowrap; }
+
+        /* BADGES */
+        .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-pending { background: rgba(234,179,8,0.1); color: #a16207; }
+        .badge-ready { background: rgba(34,197,94,0.1); color: #16a34a; }
+
+        /* ACTION BUTTONS */
+        .btn-review { padding: 8px 16px; background: var(--navy); color: #fff; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-review:hover { background: var(--navy-light); }
+        .btn-release { padding: 8px 16px; background: var(--gold); color: var(--navy); border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+        .btn-release:hover { background: var(--gold-light); }
+
+        /* EMPTY STATE */
+        .empty-state { text-align: center; padding: 80px 20px; }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--navy); margin-bottom: 8px; }
+        .empty-text { font-size: 14px; color: #888; }
+
+        /* TOAST */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: #fff; padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #22c55e; }
+        .toast.error { border-left: 4px solid #ef4444; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-inner">
+        <a href="{% url 'dashboard:admin_portal' %}" class="header-brand">
+            <img src="{% static 'images/ilimi_logo.png' %}" alt="Ilimi">
+            <div class="brand-text">
+                <div class="name">Ilimi</div>
+                <div class="tagline">School Management Platform</div>
+            </div>
+        </a>
+        <div class="header-right">
+            <div class="notif-wrap">
+                <button class="notif-btn" onclick="toggleNotifications()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    {% if unread_count > 0 %}<span class="notif-badge"></span>{% endif %}
+                </button>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div class="notif-header">
+                        <span class="notif-header-title">Notifications {% if unread_count > 0 %}({{ unread_count }}){% endif %}</span>
+                        <button class="notif-mark-read" onclick="markAllRead()">Mark all read</button>
+                    </div>
+                    <div class="notif-list">
+                        {% for n in notifications %}
+                        <div class="notif-item {% if not n.is_read %}unread{% endif %}">
+                            <div class="notif-dot {% if n.is_read %}read{% endif %}"></div>
+                            <div class="notif-text">
+                                <p>{{ n.message }}</p>
+                                <span>{{ n.created_at|timesince }} ago</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="notif-empty">No notifications yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="user-chip">
+                <div class="user-avatar">{{ user.first_name|slice:":1" }}{{ user.last_name|slice:":1" }}</div>
+                <div class="user-info">
+                    <div class="user-name">{{ user.first_name }} {{ user.last_name }}</div>
+                    <div class="user-role">Administrator</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+    <a href="{% url 'dashboard:admin_portal' %}">Admin Portal</a>
+    <span>›</span>
+    <span class="current">Report Cards Queue</span>
+</div>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+    <div class="page-title">Report Cards Queue</div>
+    <div class="page-subtitle">Review and approve submitted report cards from teachers.</div>
+</div>
+
+<!-- MAIN -->
+<main class="main">
+    {% if report_groups %}
+    <div class="queue-card">
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Term</th>
+                    <th>Approval Progress</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in report_groups %}
+                <tr>
+                    <td>
+                        <div class="class-name">{{ group.classroom }}</div>
+                    </td>
+                    <td>{{ group.term }}</td>
+                    <td>
+                        <div class="progress-wrap">
+                            <div class="progress-bar">
+                                <div class="progress-fill {% if group.all_approved %}complete{% endif %}"
+                                     style="width: {% widthratio group.approved group.total 100 %}%">
+                                </div>
+                            </div>
+                            <span class="progress-label">{{ group.approved }}/{{ group.total }} approved</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if group.all_approved %}
+                        <span class="badge badge-ready">✓ Ready to Release</span>
+                        {% else %}
+                        <span class="badge badge-pending">{{ group.submitted }} Pending Review</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if group.all_approved %}
+                        <button class="btn-release" onclick="releaseReports({{ group.classroom.id }}, {{ group.term.id }})">
+                            🎓 Release to Parents
+                        </button>
+                        {% else %}
+                        <a href="{% url 'admin_report_class_review' group.classroom.id group.term.id %}" class="btn-review">
+                            Review →
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No reports pending review</div>
+        <div class="empty-text">When teachers submit report cards, they will appear here for your review.</div>
+    </div>
+    {% endif %}
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.className = 'toast', 3000);
+}
+
+function toggleNotifications() {
+    document.getElementById('notifDropdown').classList.toggle('open');
+}
+
+function markAllRead() {
+    fetch("{% url 'admin_notifications_mark_read' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+    });
+}
+
+function releaseReports(classroomId, termId) {
+    if (!confirm('Release all approved report cards to parents? This cannot be undone.')) return;
+
+    fetch(`/reports/admin/classroom/${classroomId}/term/${termId}/release/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`${data.released} report cards released to parents.`);
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Something went wrong.', 'error');
+        }
+    });
+}
+
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('notifDropdown');
+    if (!e.target.closest('.notif-wrap')) {
+        dropdown.classList.remove('open');
+    }
+});
+</script>
+
+</body>
+</html>

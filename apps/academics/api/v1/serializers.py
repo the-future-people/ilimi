@@ -190,3 +190,4 @@ class SubjectAssignmentCreateSerializer(serializers.ModelSerializer):
                 "This subject is already assigned to this classroom for this term."
             )
         return attrs
+

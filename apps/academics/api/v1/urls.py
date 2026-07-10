@@ -9,6 +9,7 @@ from .views import (
     SubjectListCreateView,
     SubjectDetailView,
     SubjectAssignmentListCreateView,
+    MySchoolClassroomsView,
 )
 from .ca_views import (
     CAComponentTypeListView,
@@ -48,4 +49,5 @@ urlpatterns = [
     path('ca-scores/', CAScoreListView.as_view(), name='ca-score-list'),
     path('ca-scores/exam/<int:student_id>/', CAExamScoreSaveView.as_view(), name='ca-exam-score-save'),
     path('ca-scores/submit/', CAScoresSubmitView.as_view(), name='ca-scores-submit'),
+    path('my-classrooms/', MySchoolClassroomsView.as_view(), name='my-school-classrooms'),
 ]

@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 @transaction.atomic
 def create_school_with_owner(user, school_data):
     """
-    Create a school and link the user as school_admin.
-    Called after step 2 of registration.
+    Create a school, its default Main Campus branch, and link the user
+    as school_admin. Called after step 2 of registration. Marks
+    onboarding as complete and sends a welcome SMS.
     Returns the created School instance.
     """
     free_plan = SubscriptionPlan.objects.filter(plan_type='free').first()
@@ -23,6 +24,8 @@ def create_school_with_owner(user, school_data):
         phone=school_data['school_phone'],
         city=school_data['city'],
         country=school_data.get('country', 'Ghana'),
+        school_type=school_data.get('school_type', ''),
+        expected_student_count=school_data.get('expected_student_count', ''),
         subscription_plan=free_plan,
         subscription_status='trial',
         trial_ends_at=timezone.now() + timedelta(days=30),
@@ -34,15 +37,34 @@ def create_school_with_owner(user, school_data):
         school.logo = school_data['logo']
         school.save(update_fields=['logo'])
 
-    SchoolMember.objects.create(
-        user=user,
+    branch = Branch.objects.create(
         school=school,
-        branch=None,
-        role='school_admin',
+        name='Main Campus',
+        branch_code='MAIN',
+        address=school_data.get('address', ''),
+        city=school.city,
+        phone=school.phone,
+        email=school.email,
+        is_main_branch=True,
         is_active=True,
     )
 
-    logger.info(f"School created: {school.name} by {user.email}")
+    SchoolMember.objects.create(
+        user=user,
+        school=school,
+        branch=branch,
+        role='school_admin',
+        position_title=school_data.get('position_title', ''),
+        is_active=True,
+    )
+
+    school.onboarding_complete = True
+    school.onboarding_step = 2
+    school.save(update_fields=['onboarding_complete', 'onboarding_step'])
+
+    send_welcome_sms(user.phone_number, school.name)
+
+    logger.info(f"School created with main branch: {school.name} by {user.email}")
     return school
 
 

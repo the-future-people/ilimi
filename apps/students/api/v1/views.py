@@ -118,14 +118,18 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
 
         try:
             current_year = AcademicYear.objects.get(school=school, is_current=True)
-            StudentClassHistory.objects.create(
-                student=student,
-                classroom=student.current_class,
-                academic_year=current_year,
-                is_current=True,
-            )
+            if student.current_class:
+                StudentClassHistory.objects.create(
+                    student=student,
+                    classroom=student.current_class,
+                    academic_year=current_year,
+                    is_current=True,
+                )
         except AcademicYear.DoesNotExist:
             pass
+
+        from apps.students.services.notification_service import notify_guardian_enrolment
+        notify_guardian_enrolment(student, school)
 
         return Response(
             {
@@ -269,3 +273,123 @@ class StudentClassHistoryView(SchoolScopedMixin, GenericAPIView):
 
         serializer = StudentClassHistorySerializer(history, many=True)
         return Response({'history': serializer.data, 'count': history.count()})
+
+
+@extend_schema(tags=["Students"])
+class StudentChangeClassView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    @transaction.atomic
+    def post(self, request, pk, *args, **kwargs):
+        from apps.academics.models import ClassRoom, AcademicYear
+
+        school = self.get_school()
+
+        try:
+            student = Student.objects.get(school=school, pk=pk)
+        except Student.DoesNotExist:
+            raise NotFound("Student not found.")
+
+        classroom_id = request.data.get('classroom_id')
+        remarks = request.data.get('remarks', '')
+
+        if not classroom_id:
+            return Response({'message': 'classroom_id is required.'}, status=400)
+
+        try:
+            classroom = ClassRoom.objects.get(id=classroom_id, school=school)
+        except ClassRoom.DoesNotExist:
+            return Response({'message': 'Classroom not found.'}, status=400)
+
+        current_year = AcademicYear.objects.filter(school=school, is_current=True).first()
+        if not current_year:
+            return Response({'message': 'No active academic year found for this school.'}, status=400)
+
+        old_classroom_name = student.current_class.full_name if student.current_class else 'Unassigned'
+
+        # Mark any existing current history row as no longer current
+        StudentClassHistory.objects.filter(
+            student=student, is_current=True
+        ).update(is_current=False)
+
+        # Create the new history row
+        StudentClassHistory.objects.create(
+            student=student,
+            classroom=classroom,
+            academic_year=current_year,
+            is_current=True,
+            remarks=remarks,
+        )
+
+        # Update the student's current class
+        student.current_class = classroom
+        student.save(update_fields=['current_class'])
+
+        return Response({
+            'message': f"{student.full_name} moved from {old_classroom_name} to {classroom.full_name}.",
+            **StudentSerializer(student).data,
+        })
+
+@extend_schema(tags=["Students"])
+class StudentBulkChangeClassView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        from apps.academics.models import ClassRoom, AcademicYear
+
+        school = self.get_school()
+
+        student_ids = request.data.get('student_ids', [])
+        classroom_id = request.data.get('classroom_id')
+        remarks = request.data.get('remarks', '')
+
+        if not student_ids:
+            return Response({'message': 'student_ids is required and cannot be empty.'}, status=400)
+        if not classroom_id:
+            return Response({'message': 'classroom_id is required.'}, status=400)
+
+        try:
+            classroom = ClassRoom.objects.get(id=classroom_id, school=school)
+        except ClassRoom.DoesNotExist:
+            return Response({'message': 'Classroom not found.'}, status=400)
+
+        current_year = AcademicYear.objects.filter(school=school, is_current=True).first()
+        if not current_year:
+            return Response({'message': 'No active academic year found for this school.'}, status=400)
+
+        students = Student.objects.filter(id__in=student_ids, school=school)
+        found_ids = set(students.values_list('id', flat=True))
+        missing_ids = set(student_ids) - found_ids
+
+        moved = []
+        for student in students:
+            StudentClassHistory.objects.filter(
+                student=student, is_current=True
+            ).update(is_current=False)
+
+            StudentClassHistory.objects.create(
+                student=student,
+                classroom=classroom,
+                academic_year=current_year,
+                is_current=True,
+                remarks=remarks,
+            )
+
+            student.current_class = classroom
+            student.save(update_fields=['current_class'])
+            moved.append(student.full_name)
+
+        response_data = {
+            'message': f"{len(moved)} student(s) moved to {classroom.full_name}.",
+            'moved_count': len(moved),
+            'moved_students': moved,
+        }
+
+        if missing_ids:
+            response_data['warning'] = f"{len(missing_ids)} student ID(s) not found or do not belong to your school."
+            response_data['missing_ids'] = list(missing_ids)
+
+        return Response(response_data)

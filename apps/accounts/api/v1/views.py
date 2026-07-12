@@ -5,7 +5,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,13 +14,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.utils import extend_schema
 
 from apps.core.renderers import IlimiAPIRenderer
-from apps.accounts.services.registration import create_user_account, resend_otp
+from apps.accounts.services.registration import create_user_account, resend_otp, send_initial_otp
 from apps.accounts.services.verification import verify_phone_otp
 from apps.tenants.services.onboarding import create_school_with_owner
 
 from .serializers import (
     RegisterStep1Serializer,
-    RegisterStep2Serializer,
+    RegisterSchoolSerializer,
     OTPVerifySerializer,
     OTPResendSerializer,
     PasswordResetRequestSerializer,
@@ -58,20 +58,19 @@ class RegisterStep1View(GenericAPIView):
             'phone_number': data['phone_number'],
         }
 
-        user, otp = create_user_account(step1_data)
+        user = create_user_account(step1_data)
 
         return Response(
             {
-                "message": "Account created. Please check your phone for the verification code.",
+                "message": "Account created.",
                 "phone_number": user.phone_number,
             },
             status=status.HTTP_201_CREATED,
         )
 
-
 @extend_schema(tags=["Auth"])
-class RegisterStep2View(GenericAPIView):
-    serializer_class = RegisterStep2Serializer
+class SendInitialOtpView(GenericAPIView):
+    serializer_class = OTPResendSerializer
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
 
@@ -79,26 +78,53 @@ class RegisterStep2View(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
+        user = User.objects.filter(
+            phone_number=serializer.validated_data["phone_number"]
+        ).first()
 
-        user = User.objects.get(phone_number=data["phone_number"])
+        if user.is_phone_verified:
+            return Response(
+                {"message": "This phone number is already verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        send_initial_otp(user)
+
+        return Response(
+            {"message": "Verification code sent to your phone."},
+            status=status.HTTP_200_OK,
+        )
+
+@extend_schema(tags=["Auth"])
+class RegisterSchoolView(GenericAPIView):
+    serializer_class = RegisterSchoolSerializer
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        user = request.user
 
         school_data = {
             "school_name": data["school_name"],
-            "school_email": data["school_email"],
-            "school_phone": data["school_phone"],
+            "school_email": data.get("school_email") or user.email,
+            "school_phone": data.get("school_phone") or user.phone_number,
             "city": data["city"],
             "country": data.get("country", "Ghana"),
-            "address": data.get("address", ""),
+            "school_type": data.get("school_type", ""),
+            "expected_student_count": data.get("expected_student_count", ""),
+            "position_title": data.get("position_title", ""),
         }
         school = create_school_with_owner(user, school_data)
 
         return Response(
             {
-                "message": "School created. Please verify your phone number to continue.",
+                "message": f"{school.name} is all set up and ready to go.",
                 "school_id": school.id,
                 "school_name": school.name,
-                "phone_number": user.phone_number,
             },
             status=status.HTTP_201_CREATED,
         )

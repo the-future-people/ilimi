@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 def create_user_account(step1_data):
     """
     Create a new user account from step 1 registration data.
-    User is inactive until phone is verified.
-    Returns (user, otp) tuple.
+    User is inactive until phone is verified. Does NOT send an OTP —
+    the frontend triggers that separately once the verification step
+    is actually displayed, via send_initial_otp().
+    Returns the created User.
     """
     user = User.objects.create_user(
         email=step1_data['email'],
@@ -24,11 +26,20 @@ def create_user_account(step1_data):
         is_active=False,
     )
 
+    logger.info(f"New user account created: {user.email}")
+    return user
+
+
+def send_initial_otp(user):
+    """
+    Sends the first OTP for a freshly created, unverified user.
+    Called by the frontend once the person actually reaches the
+    verification step — not at account creation time — so the
+    code's expiry window starts when they're looking at the input.
+    """
     otp = PhoneVerificationOTP.create_for_user(user)
     send_otp_sms(user.phone_number, otp.otp)
-
-    logger.info(f"New user account created: {user.email}")
-    return user, otp
+    return otp
 
 
 def resend_otp(user):

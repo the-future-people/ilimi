@@ -38,14 +38,24 @@ class RegisterStep1Serializer(serializers.Serializer):
         return attrs
 
 
-class RegisterStep2Serializer(serializers.Serializer):
-    phone_number = serializers.CharField(max_length=20)
+class RegisterSchoolSerializer(serializers.Serializer):
     school_name = serializers.CharField(max_length=255)
-    school_email = serializers.EmailField()
-    school_phone = serializers.CharField(max_length=20)
+    school_email = serializers.EmailField(required=False, allow_blank=True, default='')
+    school_phone = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
     city = serializers.CharField(max_length=100)
     country = serializers.CharField(max_length=100, default="Ghana")
-    address = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+    school_type = serializers.ChoiceField(
+        choices=['basic', 'shs', 'international', 'group'],
+        required=False, allow_blank=True, default=''
+    )
+    expected_student_count = serializers.ChoiceField(
+        choices=['under_100', '100_300', '300_600', '600_plus'],
+        required=False, allow_blank=True, default=''
+    )
+    position_title = serializers.ChoiceField(
+        choices=['proprietor', 'head_teacher', 'administrator', 'other'],
+        required=False, allow_blank=True, default=''
+    )
 
     def validate_phone_number(self, value):
         value = value.strip().replace(" ", "")

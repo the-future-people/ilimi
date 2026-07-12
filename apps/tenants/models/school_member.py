@@ -27,7 +27,18 @@ class SchoolMember(models.Model):
         blank=True,
         related_name='members'
     )
+    POSITION_CHOICES = [
+        ('proprietor', 'Proprietor / Owner'),
+        ('head_teacher', 'Head Teacher / Principal'),
+        ('administrator', 'Administrator'),
+        ('other', 'Other'),
+    ]
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    position_title = models.CharField(
+        max_length=20, choices=POSITION_CHOICES, blank=True,
+        help_text="Descriptive title for this person's position at the school — informational only, does not affect permissions."
+    )
     is_active = models.BooleanField(default=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 

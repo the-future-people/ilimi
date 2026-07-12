@@ -160,6 +160,8 @@ class StudentEnrolSerializer(serializers.ModelSerializer):
         return value
 
     def validate_current_class(self, value):
+        if value is None:
+            return value
         school = self.context.get('school')
         if school and value.school != school:
             raise serializers.ValidationError(

@@ -56,38 +56,15 @@ def build_pickup_authorisation_sms(student, attempted_by_name, school):
 
 def send_sms(phone_number, message):
     """
-    Sends an SMS via Arkesel.
-    Returns (success: bool, response: dict).
-    Synchronous for Phase 1 — wire up Celery task in tasks.py later.
+    Sends an SMS using the canonical, pluggable SMS backend
+    (Console in dev, Arkesel in production — controlled by settings.SMS_BACKEND).
+    Returns (success: bool, response: dict) to preserve this file's existing call signature.
     """
-    import requests
-    from django.conf import settings
+    from apps.notifications.services.sms import send_sms as canonical_send_sms
 
-    api_key = getattr(settings, 'ARKESEL_API_KEY', None)
-    sender_id = getattr(settings, 'ARKESEL_SENDER_ID', 'ILIMI')
-
-    if not api_key:
-        # Dev/test — log and return mock success
-        print(f"[SMS - DEV] To: {phone_number} | Message: {message}")
-        return True, {'status': 'dev_mock'}
-
-    try:
-        response = requests.post(
-            'https://sms.arkesel.com/api/v2/sms/send',
-            headers={'api-key': api_key},
-            json={
-                'sender': sender_id,
-                'message': message,
-                'recipients': [phone_number],
-            },
-            timeout=10,
-        )
-        data = response.json()
-        success = response.status_code == 200 and data.get('status') == 'success'
-        return success, data
-
-    except requests.RequestException as e:
-        return False, {'error': str(e)}
+    result = canonical_send_sms(phone_number, message)
+    success = result.get('status') == 'success'
+    return success, result
 
 
 # ── Notification Helpers ───────────────────────────────────────────────────────

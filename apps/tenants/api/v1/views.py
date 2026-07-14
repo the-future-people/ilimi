@@ -86,6 +86,28 @@ class MyMembershipsView(GenericAPIView):
 # ── School ────────────────────────────────────────────────────────────────
 
 @extend_schema(tags=["Schools"])
+class MarkTourSeenView(GenericAPIView):
+    """
+    Marks the tour as seen for a specific school membership. Called once
+    the person completes or skips the onboarding product tour.
+    """
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, member_id, *args, **kwargs):
+        member = SchoolMember.objects.filter(
+            id=member_id, user=request.user, is_active=True
+        ).first()
+
+        if not member:
+            return Response({"message": "Membership not found."}, status=404)
+
+        member.has_seen_tour = True
+        member.save(update_fields=["has_seen_tour"])
+
+        return Response({"message": "Tour marked as seen."})
+    
+@extend_schema(tags=["Schools"])
 class SchoolMeView(SchoolScopedMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]
     renderer_classes = [IlimiAPIRenderer]

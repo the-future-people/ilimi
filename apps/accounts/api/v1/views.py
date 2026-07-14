@@ -5,7 +5,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -14,18 +14,17 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.utils import extend_schema
 
 from apps.core.renderers import IlimiAPIRenderer
-from apps.accounts.services.registration import create_user_account, resend_otp, send_initial_otp
-from apps.accounts.services.verification import verify_phone_otp
-from apps.tenants.services.onboarding import create_school_with_owner
+from apps.accounts.models import PendingRegistration
+from apps.accounts.services.registration import start_registration, resend_pending_otp, verify_and_create
 
 from .serializers import (
-    RegisterStep1Serializer,
-    RegisterSchoolSerializer,
-    OTPVerifySerializer,
-    OTPResendSerializer,
+    StartRegistrationSerializer,
+    VerifyAndCreateSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     UserProfileSerializer,
+    IlimiTokenObtainSerializer,
+    normalize_ghana_phone,
 )
 
 User = get_user_model()
@@ -40,8 +39,8 @@ def _tokens_for_user(user):
 
 
 @extend_schema(tags=["Auth"])
-class RegisterStep1View(GenericAPIView):
-    serializer_class = RegisterStep1Serializer
+class StartRegistrationView(GenericAPIView):
+    serializer_class = StartRegistrationSerializer
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
 
@@ -49,89 +48,42 @@ class RegisterStep1View(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
-        step1_data = {
-            'email': data['email'],
-            'password1': data['password'],
-            'first_name': data['first_name'],
-            'last_name': data['last_name'],
-            'phone_number': data['phone_number'],
-        }
-
-        user = create_user_account(step1_data)
+        pending = start_registration(serializer.validated_data)
 
         return Response(
             {
-                "message": "Account created.",
-                "phone_number": user.phone_number,
+                "message": "Verification code sent to your phone.",
+                "phone_number": pending.phone_number,
             },
             status=status.HTTP_201_CREATED,
         )
 
+
 @extend_schema(tags=["Auth"])
-class SendInitialOtpView(GenericAPIView):
-    serializer_class = OTPResendSerializer
+class ResendPendingOtpView(GenericAPIView):
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        phone_number = request.data.get("phone_number", "").strip()
+        pending = PendingRegistration.objects.filter(phone_number=phone_number).first()
 
-        user = User.objects.filter(
-            phone_number=serializer.validated_data["phone_number"]
-        ).first()
-
-        if user.is_phone_verified:
+        if not pending:
             return Response(
-                {"message": "This phone number is already verified."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"message": "No pending registration found for this phone number."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        send_initial_otp(user)
+        success, message = resend_pending_otp(pending)
+        if not success:
+            return Response({"message": message}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        return Response(
-            {"message": "Verification code sent to your phone."},
-            status=status.HTTP_200_OK,
-        )
+        return Response({"message": message}, status=status.HTTP_200_OK)
 
-@extend_schema(tags=["Auth"])
-class RegisterSchoolView(GenericAPIView):
-    serializer_class = RegisterSchoolSerializer
-    permission_classes = [IsAuthenticated]
-    renderer_classes = [IlimiAPIRenderer]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        data = serializer.validated_data
-        user = request.user
-
-        school_data = {
-            "school_name": data["school_name"],
-            "school_email": data.get("school_email") or user.email,
-            "school_phone": data.get("school_phone") or user.phone_number,
-            "city": data["city"],
-            "country": data.get("country", "Ghana"),
-            "school_type": data.get("school_type", ""),
-            "expected_student_count": data.get("expected_student_count", ""),
-            "position_title": data.get("position_title", ""),
-        }
-        school = create_school_with_owner(user, school_data)
-
-        return Response(
-            {
-                "message": f"{school.name} is all set up and ready to go.",
-                "school_id": school.id,
-                "school_name": school.name,
-            },
-            status=status.HTTP_201_CREATED,
-        )
 
 @extend_schema(tags=["Auth"])
-class OTPVerifyView(GenericAPIView):
-    serializer_class = OTPVerifySerializer
+class VerifyAndCreateView(GenericAPIView):
+    serializer_class = VerifyAndCreateSerializer
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
 
@@ -142,26 +94,23 @@ class OTPVerifyView(GenericAPIView):
         phone_number = serializer.validated_data["phone_number"]
         otp_code = serializer.validated_data["otp_code"]
 
-        user = User.objects.filter(phone_number=phone_number).first()
-        if not user:
+        pending = PendingRegistration.objects.filter(phone_number=phone_number).first()
+        if not pending:
             return Response(
-                {"status": "error", "message": "No account found with this phone number."},
+                {"message": "No pending registration found. Please start again."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        success, message = verify_phone_otp(user, otp_code)
+        success, message, user = verify_and_create(pending, otp_code)
         if not success:
-            return Response(
-                {"status": "error", "message": message},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"message": message}, status=status.HTTP_400_BAD_REQUEST)
 
         tokens = _tokens_for_user(user)
         profile = UserProfileSerializer(user).data
 
         return Response(
             {
-                "message": "Phone verified successfully. Welcome to Ilimi!",
+                "message": "Welcome to Ilimi!",
                 "tokens": tokens,
                 "user": profile,
             },
@@ -170,40 +119,20 @@ class OTPVerifyView(GenericAPIView):
 
 
 @extend_schema(tags=["Auth"])
-class OTPResendView(GenericAPIView):
-    serializer_class = OTPResendSerializer
-    permission_classes = [AllowAny]
-    renderer_classes = [IlimiAPIRenderer]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        user = User.objects.filter(
-            phone_number=serializer.validated_data["phone_number"]
-        ).first()
-
-        success, message = resend_otp(user)
-
-        if not success:
-            return Response(
-                {"status": "error", "message": message},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
-            )
-
-        return Response({"message": message}, status=status.HTTP_200_OK)
-
-
-@extend_schema(tags=["Auth"])
 class IlimiTokenObtainView(TokenObtainPairView):
+    serializer_class = IlimiTokenObtainSerializer
     renderer_classes = [IlimiAPIRenderer]
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
-            user = User.objects.filter(
-                email=request.data.get("email", "").lower()
-            ).first()
+            identifier = request.data.get("identifier", "").strip()
+            if "@" in identifier:
+                user = User.objects.filter(email=identifier.lower()).first()
+            else:
+                normalized = normalize_ghana_phone(identifier)
+                user = User.objects.filter(phone_number=normalized).first() if normalized else None
+
             if user:
                 response.data["user"] = UserProfileSerializer(user).data
                 response.data["message"] = f"Welcome back, {user.first_name}!"
@@ -264,3 +193,34 @@ class PasswordResetConfirmView(GenericAPIView):
             {"message": "Password updated successfully. You can now log in."},
             status=status.HTTP_200_OK,
         )
+
+
+@extend_schema(tags=["Auth"])
+class CheckAvailabilityView(GenericAPIView):
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, *args, **kwargs):
+        field = request.data.get("field")
+        value = request.data.get("value", "").strip()
+
+        if not value:
+            return Response({"available": True})
+
+        if field == "email":
+            exists = User.objects.filter(email=value.lower()).exists()
+        elif field == "phone_number":
+            normalized = normalize_ghana_phone(value)
+            if normalized is None:
+                return Response({"available": False, "message": "Please enter a valid Ghana phone number (e.g. 0244558389 or 244558389)."})
+            exists = User.objects.filter(phone_number=normalized).exists()
+        elif field == "school_email":
+            from apps.tenants.models import School
+            exists = School.objects.filter(email=value.lower()).exists()
+        else:
+            return Response({"message": "Unknown field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "available": not exists,
+            "message": None if not exists else "This is already in use.",
+        })

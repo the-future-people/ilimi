@@ -1,10 +1,9 @@
 from django.urls import path
 from .views import (
-    RegisterStep1View,
-    SendInitialOtpView,
-    RegisterSchoolView,
-    OTPVerifyView,
-    OTPResendView,
+    StartRegistrationView,
+    ResendPendingOtpView,
+    VerifyAndCreateView,
+    CheckAvailabilityView,
     IlimiTokenObtainView,
     IlimiTokenRefreshView,
     PasswordResetRequestView,
@@ -14,11 +13,10 @@ from .views import (
 app_name = "auth-v1"
 
 urlpatterns = [
-    path("register/step1/", RegisterStep1View.as_view(), name="register-step1"),
-    path("register/send-otp/", SendInitialOtpView.as_view(), name="register-send-otp"),
-    path("register/school/", RegisterSchoolView.as_view(), name="register-school"),
-    path("verify/otp/", OTPVerifyView.as_view(), name="otp-verify"),
-    path("verify/otp/resend/", OTPResendView.as_view(), name="otp-resend"),
+    path("register/start/", StartRegistrationView.as_view(), name="register-start"),
+    path("register/resend-otp/", ResendPendingOtpView.as_view(), name="register-resend-otp"),
+    path("register/verify/", VerifyAndCreateView.as_view(), name="register-verify"),
+    path("register/check-availability/", CheckAvailabilityView.as_view(), name="check-availability"),
     path("token/", IlimiTokenObtainView.as_view(), name="token-obtain"),
     path("token/refresh/", IlimiTokenRefreshView.as_view(), name="token-refresh"),
     path("password/reset/", PasswordResetRequestView.as_view(), name="password-reset"),

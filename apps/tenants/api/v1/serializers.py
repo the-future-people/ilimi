@@ -177,6 +177,7 @@ class MyMembershipSerializer(serializers.ModelSerializer):
             "role",
             "role_display",
             "is_active",
+            "has_seen_tour",
             "joined_at",
         ]
         read_only_fields = fields

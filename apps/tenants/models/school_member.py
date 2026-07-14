@@ -40,6 +40,7 @@ class SchoolMember(models.Model):
         help_text="Descriptive title for this person's position at the school — informational only, does not affect permissions."
     )
     is_active = models.BooleanField(default=True)
+    has_seen_tour = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

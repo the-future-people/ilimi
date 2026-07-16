@@ -3,7 +3,11 @@
 import os
 import sys
 
+import os
+if os.name == 'nt':
+    os.add_dll_directory(r'C:\msys64\ucrt64\bin')
 
+    
 def main():
     """Run administrative tasks."""
     os.environ.setdefault(

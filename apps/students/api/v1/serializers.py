@@ -23,13 +23,21 @@ class GuardianSerializer(serializers.ModelSerializer):
 
 class GuardianCreateSerializer(serializers.ModelSerializer):
     is_primary = serializers.BooleanField(default=False, write_only=True)
+    occupation_name = serializers.CharField(
+        required=False, allow_blank=True, write_only=True,
+        help_text="Free-text occupation name; resolved to an Occupation record on save."
+    )
 
     class Meta:
         model = Guardian
         fields = [
-            'first_name', 'last_name', 'relationship', 'occupation',
-            'employer', 'nationality', 'phone', 'whatsapp_number', 'email',
-            'residential_address', 'is_fee_payer', 'is_primary',
+            'title', 'first_name', 'last_name', 'relationship',
+            'occupation_name', 'employer', 'nationality',
+            'phone', 'whatsapp_number', 'secondary_phone', 'email',
+            'residential_address', 'digital_address',
+            'ghana_card_number', 'ghana_card_front', 'ghana_card_back',
+            'photo', 'fingerprint_data', 'can_pickup',
+            'is_fee_payer', 'is_primary',
         ]
 
 
@@ -131,20 +139,27 @@ class StudentEnrolSerializer(serializers.ModelSerializer):
         many=True, write_only=True, required=False, default=[]
     )
 
+    sibling_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Student.objects.all(), many=True, write_only=True,
+        required=False, default=list,
+        help_text="IDs of existing students to link as siblings."
+    )
+
     class Meta:
         model = Student
         fields = [
             'first_name', 'middle_name', 'last_name',
             'date_of_birth', 'gender', 'place_of_birth', 'home_town',
-            'nationality', 'mother_tongue', 'birth_certificate_number',
+            'nationality', 'mother_tongue', 'ghana_card_number',
+            'birth_certificate_number',
             'nhis_number', 'residential_address', 'city', 'region',
             'religion', 'blood_group', 'known_allergies', 'medical_notes',
             'disability_status', 'disability_description',
             'enrollment_date', 'expected_graduation_year', 'previous_school',
             'boarding_status', 'house_dormitory', 'bus_route',
             'locker_number', 'talents_skills', 'additional_notes',
-            'photo', 'current_class',
-            'guardians', 'emergency_contacts',
+            'photo', 'fingerprint_data', 'current_class',
+            'guardians', 'emergency_contacts', 'sibling_ids',
         ]
 
     def validate_guardians(self, value):
@@ -167,6 +182,16 @@ class StudentEnrolSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Classroom does not belong to your school."
             )
+        return value
+    
+    def validate_sibling_ids(self, value):
+        school = self.context.get('school')
+        if school:
+            for student in value:
+                if student.school != school:
+                    raise serializers.ValidationError(
+                        f"Student '{student.full_name}' does not belong to your school."
+                    )
         return value
 
 

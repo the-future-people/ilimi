@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 
+from apps.core.models.occupation import Occupation
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.academics.models import AcademicYear
@@ -97,6 +98,7 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
 
         guardians_data = data.pop('guardians')
         emergency_contacts_data = data.pop('emergency_contacts', [])
+        sibling_students = data.pop('sibling_ids', [])
 
         student = Student.objects.create(
             school=school,
@@ -104,9 +106,16 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
             **data,
         )
 
+        if sibling_students:
+            student.siblings.add(*sibling_students)
+
         for g_data in guardians_data:
             is_primary = g_data.pop('is_primary', False)
-            guardian = Guardian.objects.create(**g_data)
+            occupation_name = g_data.pop('occupation_name', '').strip()
+            occupation = None
+            if occupation_name:
+                occupation, _ = Occupation.objects.get_or_create(name=occupation_name)
+            guardian = Guardian.objects.create(occupation=occupation, **g_data)
             StudentGuardian.objects.create(
                 student=student,
                 guardian=guardian,
@@ -174,7 +183,89 @@ class StudentDetailView(SchoolScopedMixin, GenericAPIView):
 
 
 # ── Guardians ─────────────────────────────────────────────────────────────
+ALLOWED_STUDENT_UPLOAD_FIELDS = {'photo', 'fingerprint_data'}
+ALLOWED_GUARDIAN_UPLOAD_FIELDS = {'photo', 'fingerprint_data', 'ghana_card_front', 'ghana_card_back'}
 
+
+@extend_schema(tags=["Students"])
+class StudentFileUploadView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = None
+
+    def post(self, request, pk, field, *args, **kwargs):
+        school = self.get_school()
+
+        if field not in ALLOWED_STUDENT_UPLOAD_FIELDS:
+            return Response(
+                {"status": "error", "message": f"Field '{field}' is not uploadable.", "errors": {}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            student = Student.objects.get(school=school, pk=pk)
+        except Student.DoesNotExist:
+            raise NotFound("Student not found.")
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {"status": "error", "message": "No file provided.", "errors": {}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        setattr(student, field, file_obj)
+        student.save(update_fields=[field])
+
+        file_field = getattr(student, field)
+        return Response({
+            'field': field,
+            'url': file_field.url if file_field else None,
+        })
+
+
+@extend_schema(tags=["Students"])
+class GuardianFileUploadView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = None
+
+    def post(self, request, pk, field, *args, **kwargs):
+        school = self.get_school()
+
+        if field not in ALLOWED_GUARDIAN_UPLOAD_FIELDS:
+            return Response(
+                {"status": "error", "message": f"Field '{field}' is not uploadable.", "errors": {}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        link_exists = StudentGuardian.objects.filter(
+            guardian_id=pk, student__school=school
+        ).exists()
+        if not link_exists:
+            raise NotFound("Guardian not found.")
+
+        try:
+            guardian = Guardian.objects.get(pk=pk)
+        except Guardian.DoesNotExist:
+            raise NotFound("Guardian not found.")
+
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {"status": "error", "message": "No file provided.", "errors": {}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        setattr(guardian, field, file_obj)
+        guardian.save(update_fields=[field])
+
+        file_field = getattr(guardian, field)
+        return Response({
+            'field': field,
+            'url': file_field.url if file_field else None,
+        })
+    
 @extend_schema(tags=["Students"])
 class StudentGuardianListCreateView(SchoolScopedMixin, GenericAPIView):
     permission_classes = [IsAuthenticated]

@@ -7,12 +7,14 @@ from apps.academics.models import ClassRoom
 
 def student_photo_path(instance, filename):
     ext = filename.split('.')[-1]
-    return f"students/{instance.school.id}/photos/{instance.student_id}.{ext}"
+    safe_id = instance.student_id.replace('/', '-')
+    return f"students/{instance.school.id}/photos/{safe_id}.{ext}"
 
 
 def student_fingerprint_path(instance, filename):
     ext = filename.split('.')[-1]
-    return f"students/{instance.school.id}/fingerprints/{instance.student_id}.{ext}"
+    safe_id = instance.student_id.replace('/', '-')
+    return f"students/{instance.school.id}/fingerprints/{safe_id}.{ext}"
 
 
 class Student(models.Model):
@@ -100,6 +102,10 @@ class Student(models.Model):
     mother_tongue = models.CharField(max_length=100, blank=True)
 
     # ── Official documents ────────────────────────────────────────────
+    ghana_card_number = models.CharField(
+        max_length=20, blank=True,
+        verbose_name='Ghana Card Number'
+    )
     birth_certificate_number = models.CharField(max_length=100, blank=True)
     nhis_number = models.CharField(
         max_length=50, blank=True,

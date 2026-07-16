@@ -33,6 +33,26 @@ class GeneratedDocumentSerializer(serializers.ModelSerializer):
             return obj.generated_by.full_name or obj.generated_by.email
         return None
 
+class GeneratedDocumentAdminListSerializer(serializers.ModelSerializer):
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    document_type = serializers.CharField(source='template.document_type', read_only=True)
+    generated_by_name = serializers.SerializerMethodField()
+    student_name = serializers.CharField(source='student.full_name', read_only=True)
+    student_id_number = serializers.CharField(source='student.student_id', read_only=True)
+
+    class Meta:
+        model = GeneratedDocument
+        fields = [
+            'id', 'student', 'student_name', 'student_id_number',
+            'template', 'template_name', 'document_type',
+            'generated_by', 'generated_by_name', 'generated_at', 'pdf_file',
+        ]
+        read_only_fields = fields
+
+    def get_generated_by_name(self, obj):
+        if obj.generated_by:
+            return obj.generated_by.full_name or obj.generated_by.email
+        return None
 
 class DocumentGenerationRequestSerializer(serializers.Serializer):
     """

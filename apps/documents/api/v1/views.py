@@ -20,6 +20,7 @@ from apps.documents.services import (
 from .serializers import (
     DocumentTemplateSerializer,
     GeneratedDocumentSerializer,
+    GeneratedDocumentAdminListSerializer,
     DocumentGenerationRequestSerializer,
 )
 
@@ -138,6 +139,63 @@ class StudentGeneratedDocumentListView(SchoolScopedMixin, GenericAPIView):
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
+@extend_schema(tags=["Documents"])
+class GeneratedDocumentAdminListView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = GeneratedDocumentAdminListSerializer
+
+    def get(self, request, *args, **kwargs):
+        self.require_admin()
+        school = self.get_school()
+
+        qs = GeneratedDocument.objects.filter(school=school).select_related(
+            'student', 'template', 'generated_by'
+        )
+
+        document_type = request.query_params.get('document_type')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
+        search = request.query_params.get('search')
+
+        if document_type:
+            qs = qs.filter(template__document_type=document_type)
+        if date_from:
+            qs = qs.filter(generated_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(generated_at__date__lte=date_to)
+        if search:
+            qs = qs.filter(student__first_name__icontains=search) | \
+                 qs.filter(student__last_name__icontains=search) | \
+                 qs.filter(student__student_id__icontains=search)
+
+        qs = qs.order_by('-generated_at')
+
+        total_count = qs.count()
+
+        try:
+            page = max(int(request.query_params.get('page', 1)), 1)
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 20)), 1), 100)
+        except (TypeError, ValueError):
+            page_size = 20
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_qs = qs[start:end]
+
+        serializer = self.get_serializer(page_qs, many=True)
+        return Response({
+            'documents': serializer.data,
+            'count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size if total_count else 0,
+            'has_next': end < total_count,
+            'has_previous': page > 1,
+        })
 
 @extend_schema(tags=["Documents"])
 class DocumentPreviewView(SchoolScopedMixin, GenericAPIView):

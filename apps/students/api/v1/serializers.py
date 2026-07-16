@@ -118,17 +118,34 @@ class StudentListSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     enrollment_date = serializers.DateField()
     classroom_name = serializers.CharField(source='current_class.full_name', read_only=True)
+    current_class_id = serializers.IntegerField(source='current_class.id', read_only=True)
+    class_level_order = serializers.IntegerField(source='current_class.class_level.order', read_only=True)
+    primary_guardian_name = serializers.SerializerMethodField()
+    primary_guardian_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = [
             'id', 'student_id', 'full_name',
-            'gender', 'status', 'classroom_name',
-            'enrollment_date', 'photo',
+            'gender', 'status', 'classroom_name', 'current_class_id',
+            'class_level_order', 'enrollment_date', 'photo',
+            'primary_guardian_name', 'primary_guardian_phone',
         ]
 
     def get_full_name(self, obj):
         return obj.full_name
+
+    def _get_primary_link(self, obj):
+        links = list(obj.student_guardians.all())
+        return links[0] if links else None
+
+    def get_primary_guardian_name(self, obj):
+        link = self._get_primary_link(obj)
+        return link.guardian.full_name if link else None
+
+    def get_primary_guardian_phone(self, obj):
+        link = self._get_primary_link(obj)
+        return link.guardian.phone if link else None
 
 
 class StudentEnrolSerializer(serializers.ModelSerializer):

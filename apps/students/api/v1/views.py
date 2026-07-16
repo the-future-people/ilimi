@@ -10,6 +10,7 @@ from apps.core.models.occupation import Occupation
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.academics.models import AcademicYear
+from django.db.models import F, Prefetch
 from apps.students.models import (
     Student,
     Guardian,
@@ -61,7 +62,12 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
     def get(self, request, *args, **kwargs):
         school = self.get_school()
         qs = Student.objects.filter(school=school).select_related(
-            'current_class', 'branch'
+            'current_class__class_level', 'branch'
+        ).prefetch_related(
+            Prefetch(
+                'student_guardians',
+                queryset=StudentGuardian.objects.select_related('guardian').order_by('-is_primary'),
+            )
         )
 
         classroom_id = request.query_params.get('classroom')
@@ -75,14 +81,53 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
             qs = qs.filter(status=status_filter)
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
+
+        unassigned = request.query_params.get('unassigned')
+        exclude_unassigned = request.query_params.get('exclude_unassigned')
+        if unassigned == 'true':
+            qs = qs.filter(current_class__isnull=True)
+        elif exclude_unassigned == 'true':
+            qs = qs.filter(current_class__isnull=False)
+
         if search:
             qs = qs.filter(first_name__icontains=search) | \
                  qs.filter(last_name__icontains=search) | \
                  qs.filter(student_id__icontains=search)
 
-        qs = qs.order_by('last_name', 'first_name')
-        serializer = StudentListSerializer(qs, many=True)
-        return Response({'students': serializer.data, 'count': qs.count()})
+        sort_dir = request.query_params.get('sort_dir', 'asc')
+        name_order = ('last_name', 'first_name') if sort_dir == 'asc' else ('-last_name', '-first_name')
+
+        qs = qs.order_by(
+            F('current_class__class_level__order').desc(nulls_last=True),
+            'current_class__section_name', *name_order,
+        )
+
+        total_count = qs.count()
+
+        try:
+            page = max(int(request.query_params.get('page', 1)), 1)
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 20)), 1), 100)
+        except (TypeError, ValueError):
+            page_size = 20
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_qs = qs[start:end]
+
+        serializer = StudentListSerializer(page_qs, many=True)
+        return Response({
+            'students': serializer.data,
+            'count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size if total_count else 0,
+            'has_next': end < total_count,
+            'has_previous': page > 1,
+        })
+    
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):

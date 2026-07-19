@@ -4,10 +4,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
+import json
+from rest_framework import status
 
 from apps.core.renderers import IlimiAPIRenderer
+from apps.core.models import Position
 from apps.tenants.models import SchoolMember
-from apps.teachers.models import StaffProfile
+from apps.teachers.models import StaffProfile, StaffEmergencyContact
 from apps.academics.models import SubjectAssignment
 from apps.students.models import Student
 from .serializers import (
@@ -49,12 +52,13 @@ class StaffProfileListCreateView(SchoolScopedMixin, GenericAPIView):
     def get(self, request, *args, **kwargs):
         school = self.get_school()
         qs = StaffProfile.objects.filter(school=school).select_related(
-            'branch'
-        ).prefetch_related('subject_specializations')
+            'branch', 'position'
+        ).prefetch_related('subject_specializations', 'records')
 
         # Filters
         status_filter = request.query_params.get('status')
         employment_type = request.query_params.get('employment_type')
+        staff_category = request.query_params.get('staff_category')
         branch_id = request.query_params.get('branch')
         search = request.query_params.get('search')
 
@@ -62,6 +66,8 @@ class StaffProfileListCreateView(SchoolScopedMixin, GenericAPIView):
             qs = qs.filter(status=status_filter)
         if employment_type:
             qs = qs.filter(employment_type=employment_type)
+        if staff_category:
+            qs = qs.filter(staff_category=staff_category)
         if branch_id:
             qs = qs.filter(branch_id=branch_id)
         if search:
@@ -70,20 +76,73 @@ class StaffProfileListCreateView(SchoolScopedMixin, GenericAPIView):
                  qs.filter(staff_id__icontains=search) | \
                  qs.filter(phone__icontains=search)
 
-        qs = qs.order_by('last_name', 'first_name')
-        serializer = StaffProfileListSerializer(qs, many=True)
-        return Response({'staff': serializer.data, 'count': qs.count()})
+        sort_dir = request.query_params.get('sort_dir', 'asc')
+        name_order = ('last_name', 'first_name') if sort_dir == 'asc' else ('-last_name', '-first_name')
+        qs = qs.order_by(*name_order)
+
+        total_count = qs.count()
+
+        try:
+            page = max(int(request.query_params.get('page', 1)), 1)
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 20)), 1), 100)
+        except (TypeError, ValueError):
+            page_size = 20
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_qs = qs[start:end]
+
+        serializer = StaffProfileListSerializer(page_qs, many=True)
+        return Response({
+            'staff': serializer.data,
+            'count': total_count,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total_count + page_size - 1) // page_size if total_count else 0,
+            'has_next': end < total_count,
+            'has_previous': page > 1,
+        })
 
     def post(self, request, *args, **kwargs):
         member = self.get_member()
         school = member.school
         branch = member.branch
 
+        data = {}
+        for key in request.data.keys():
+            value = request.data.get(key)
+            if key in ('emergency_contacts', 'subject_specializations') and isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (ValueError, TypeError):
+                    value = []
+            data[key] = value
+
         serializer = StaffProfileCreateSerializer(
-            data=request.data, context={'school': school}
+            data=data, context={'school': school}
         )
         serializer.is_valid(raise_exception=True)
-        staff = serializer.save(school=school, branch=branch)
+        data = serializer.validated_data
+
+        emergency_contacts_data = data.pop('emergency_contacts', [])
+        position_name = data.pop('position_name', '').strip()
+
+        position = None
+        if position_name:
+            position, _ = Position.objects.get_or_create(name=position_name)
+
+        staff = StaffProfile.objects.create(
+            school=school,
+            branch=branch,
+            position=position,
+            **data,
+        )
+
+        for ec_data in emergency_contacts_data:
+            StaffEmergencyContact.objects.create(staff=staff, **ec_data)
 
         return Response(
             {

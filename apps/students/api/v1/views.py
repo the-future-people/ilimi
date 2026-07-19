@@ -11,18 +11,26 @@ from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.academics.models import AcademicYear
 from django.db.models import F, Prefetch
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.permissions import AllowAny
 from apps.students.models import (
     Student,
     Guardian,
     StudentGuardian,
     EmergencyContact,
     StudentClassHistory,
+    EnrolmentInvite,
 )
 from .serializers import (
     StudentSerializer,
     StudentListSerializer,
     StudentEnrolSerializer,
     StudentUpdateSerializer,
+    EnrolmentInviteCreateSerializer,
+    EnrolmentInviteListSerializer,
+    EnrolmentInvitePublicSerializer,
+    EnrolmentInviteSubmissionSerializer,
     StudentGuardianSerializer,
     GuardianCreateSerializer,
     EmergencyContactSerializer,
@@ -89,6 +97,10 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
         elif exclude_unassigned == 'true':
             qs = qs.filter(current_class__isnull=False)
 
+        missing_fingerprint = request.query_params.get('missing_fingerprint')
+        if missing_fingerprint == 'true':
+            qs = qs.filter(fingerprint_data='')
+
         if search:
             qs = qs.filter(first_name__icontains=search) | \
                  qs.filter(last_name__icontains=search) | \
@@ -139,51 +151,9 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
             data=request.data, context={'school': school}
         )
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
 
-        guardians_data = data.pop('guardians')
-        emergency_contacts_data = data.pop('emergency_contacts', [])
-        sibling_students = data.pop('sibling_ids', [])
-
-        student = Student.objects.create(
-            school=school,
-            branch=branch,
-            **data,
-        )
-
-        if sibling_students:
-            student.siblings.add(*sibling_students)
-
-        for g_data in guardians_data:
-            is_primary = g_data.pop('is_primary', False)
-            occupation_name = g_data.pop('occupation_name', '').strip()
-            occupation = None
-            if occupation_name:
-                occupation, _ = Occupation.objects.get_or_create(name=occupation_name)
-            guardian = Guardian.objects.create(occupation=occupation, **g_data)
-            StudentGuardian.objects.create(
-                student=student,
-                guardian=guardian,
-                is_primary=is_primary,
-            )
-
-        for ec_data in emergency_contacts_data:
-            EmergencyContact.objects.create(student=student, **ec_data)
-
-        try:
-            current_year = AcademicYear.objects.get(school=school, is_current=True)
-            if student.current_class:
-                StudentClassHistory.objects.create(
-                    student=student,
-                    classroom=student.current_class,
-                    academic_year=current_year,
-                    is_current=True,
-                )
-        except AcademicYear.DoesNotExist:
-            pass
-
-        from apps.students.services.notification_service import notify_guardian_enrolment
-        notify_guardian_enrolment(student, school)
+        from apps.students.services.enrolment import create_student_with_guardians
+        student = create_student_with_guardians(school, branch, serializer.validated_data)
 
         return Response(
             {
@@ -192,7 +162,6 @@ class StudentListCreateView(SchoolScopedMixin, GenericAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 # ── Student Detail + Update ───────────────────────────────────────────────
 
@@ -529,3 +498,212 @@ class StudentBulkChangeClassView(SchoolScopedMixin, GenericAPIView):
             response_data['missing_ids'] = list(missing_ids)
 
         return Response(response_data)
+
+# ── Enrolment Invites (Admin) ───────────────────────────────────────────────
+
+@extend_schema(tags=["Students"])
+class EnrolmentInviteListCreateView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = EnrolmentInviteListSerializer
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        qs = EnrolmentInvite.objects.filter(school=school).select_related(
+            'invited_by__user'
+        )
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        serializer = EnrolmentInviteListSerializer(qs, many=True)
+        return Response({'invites': serializer.data, 'count': qs.count()})
+
+    def post(self, request, *args, **kwargs):
+        member = self.get_member()
+        serializer = EnrolmentInviteCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        invite = EnrolmentInvite.objects.create(
+            school=member.school,
+            invited_by=member,
+            expires_at=timezone.now() + timedelta(hours=72),
+            **serializer.validated_data,
+        )
+
+        try:
+            from apps.notifications.services.sms import send_sms
+            link = f"{request.scheme}://{request.get_host()}/enrol/{invite.token}"
+            send_sms(
+                invite.parent_phone,
+                f"{member.school.name}: Please complete {invite.prospective_full_name}'s "
+                f"enrolment form here: {link} (link expires in 72 hours)",
+            )
+        except Exception:
+            pass  # SMS failure shouldn't block invite creation; link still works if copied manually
+
+        return Response(
+            {
+                'message': f"Invite sent for {invite.prospective_full_name}.",
+                **EnrolmentInviteListSerializer(invite).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(tags=["Students"])
+class EnrolmentInviteApproveView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    @transaction.atomic
+    def post(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        member = self.get_member()
+
+        try:
+            invite = EnrolmentInvite.objects.get(school=school, pk=pk)
+        except EnrolmentInvite.DoesNotExist:
+            raise NotFound("Invite not found.")
+
+        if invite.status != 'submitted':
+            return Response(
+                {'message': f"Invite is '{invite.status}', not ready for approval."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Admin can override/patch fields (e.g. assign a classroom) at approval time
+        payload = dict(invite.submitted_data or {})
+        payload.update(request.data.get('overrides', {}))
+
+        enrol_serializer = StudentEnrolSerializer(data=payload, context={'school': school})
+        enrol_serializer.is_valid(raise_exception=True)
+
+        from apps.students.services.enrolment import create_student_with_guardians
+        student = create_student_with_guardians(
+            school, member.branch, enrol_serializer.validated_data
+        )
+
+        if invite.submitted_photo:
+            student.photo.save(
+                invite.submitted_photo.name.split('/')[-1],
+                invite.submitted_photo.file,
+                save=True,
+            )
+
+        invite.status = 'approved'
+        invite.reviewed_by = member
+        invite.created_student = student
+        invite.save(update_fields=['status', 'reviewed_by', 'created_student'])
+
+        return Response({
+            'message': f"{student.full_name} enrolled successfully.",
+            **StudentSerializer(student).data,
+        })
+
+
+@extend_schema(tags=["Students"])
+class EnrolmentInviteRejectView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        member = self.get_member()
+
+        try:
+            invite = EnrolmentInvite.objects.get(school=school, pk=pk)
+        except EnrolmentInvite.DoesNotExist:
+            raise NotFound("Invite not found.")
+
+        invite.status = 'rejected'
+        invite.reviewed_by = member
+        invite.review_remarks = request.data.get('remarks', '')
+        invite.save(update_fields=['status', 'reviewed_by', 'review_remarks'])
+
+        return Response({'message': 'Invite rejected.'})
+
+
+# ── Enrolment Invites (Public, unauthenticated) ─────────────────────────────
+
+@extend_schema(tags=["Students"])
+class PublicEnrolmentInviteDetailView(GenericAPIView):
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = EnrolmentInvitePublicSerializer
+
+    def get(self, request, token, *args, **kwargs):
+        try:
+            invite = EnrolmentInvite.objects.select_related('school').get(token=token)
+        except (EnrolmentInvite.DoesNotExist, ValueError):
+            raise NotFound("This enrolment link is invalid.")
+
+        if invite.status != 'pending':
+            return Response(
+                {'message': 'This enrolment link has already been used.'},
+                status=status.HTTP_410_GONE,
+            )
+        if invite.is_expired:
+            invite.status = 'expired'
+            invite.save(update_fields=['status'])
+            return Response(
+                {'message': 'This enrolment link has expired. Please contact the school for a new one.'},
+                status=status.HTTP_410_GONE,
+            )
+
+        return Response(EnrolmentInvitePublicSerializer({
+            'school_name': invite.school.name,
+            'prospective_first_name': invite.prospective_first_name,
+            'prospective_last_name': invite.prospective_last_name,
+        }).data)
+
+
+@extend_schema(tags=["Students"])
+class PublicEnrolmentInviteSubmitView(GenericAPIView):
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = EnrolmentInviteSubmissionSerializer
+
+    def post(self, request, token, *args, **kwargs):
+        try:
+            invite = EnrolmentInvite.objects.get(token=token)
+        except (EnrolmentInvite.DoesNotExist, ValueError):
+            raise NotFound("This enrolment link is invalid.")
+
+        if invite.status != 'pending':
+            return Response(
+                {'message': 'This enrolment link has already been used.'},
+                status=status.HTTP_410_GONE,
+            )
+        if invite.is_expired:
+            invite.status = 'expired'
+            invite.save(update_fields=['status'])
+            return Response(
+                {'message': 'This enrolment link has expired.'},
+                status=status.HTTP_410_GONE,
+            )
+
+        import json
+        data = {}
+        for key in request.data.keys():
+            value = request.data.get(key)
+            if key in ('guardians', 'emergency_contacts') and isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (ValueError, TypeError):
+                    value = []
+            data[key] = value
+
+        serializer = EnrolmentInviteSubmissionSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        invite.submitted_data = serializer.validated_data
+        invite.status = 'submitted'
+        invite.submitted_at = timezone.now()
+
+        photo = request.FILES.get('photo')
+        if photo:
+            invite.submitted_photo = photo
+
+        invite.save(update_fields=['submitted_data', 'status', 'submitted_at', 'submitted_photo'])
+
+        return Response({'message': 'Thank you — your submission has been received.'})

@@ -5,7 +5,19 @@ from apps.tenants.models import School, Branch
 
 def staff_photo_path(instance, filename):
     ext = filename.split('.')[-1]
-    return f"staff/{instance.school.id}/photos/{instance.staff_id}.{ext}"
+    safe_id = instance.staff_id.replace('/', '-')
+    return f"staff/{instance.school.id}/photos/{safe_id}.{ext}"
+
+
+def staff_fingerprint_path(instance, filename):
+    ext = filename.split('.')[-1]
+    safe_id = instance.staff_id.replace('/', '-')
+    return f"staff/{instance.school.id}/fingerprints/{safe_id}.{ext}"
+
+
+def staff_document_path(instance, filename):
+    safe_id = instance.staff_id.replace('/', '-')
+    return f"staff/{instance.school.id}/documents/{safe_id}/{filename}"
 
 
 class StaffProfile(models.Model):
@@ -19,6 +31,44 @@ class StaffProfile(models.Model):
         ('volunteer', 'Volunteer'),
     ]
 
+    # ── Title ───────────────────────────────────────────────────────
+    TITLE_CHOICES = [
+        ('mr', 'Mr.'),
+        ('mrs', 'Mrs.'),
+        ('miss', 'Miss'),
+        ('madam', 'Madam'),
+        ('dr', 'Dr.'),
+        ('prof', 'Prof.'),
+        ('rev', 'Rev.'),
+        ('pastor', 'Pastor'),
+        ('alhaji', 'Alhaji'),
+        ('hajia', 'Hajia'),
+        ('hon', 'Hon.'),
+        ('other', 'Other'),
+    ]
+
+    # ── Time Commitment ─────────────────────────────────────────────
+    TIME_COMMITMENT_CHOICES = [
+        ('full_time', 'Full-Time'),
+        ('part_time', 'Part-Time'),
+    ]
+
+    # ── Staff Category ──────────────────────────────────────────────
+    STAFF_CATEGORY_CHOICES = [
+        ('teaching', 'Teaching'),
+        ('non_teaching', 'Non-Teaching'),
+        ('support', 'Support'),
+        ('management', 'Management'),
+    ]
+
+    # ── Blood Group ─────────────────────────────────────────────────
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A+'), ('A-', 'A-'),
+        ('B+', 'B+'), ('B-', 'B-'),
+        ('AB+', 'AB+'), ('AB-', 'AB-'),
+        ('O+', 'O+'), ('O-', 'O-'),
+        ('unknown', 'Unknown'),
+    ]
     # ── Gender ────────────────────────────────────────────────────────
     GENDER_CHOICES = [
         ('male', 'Male'),
@@ -37,6 +87,7 @@ class StaffProfile(models.Model):
     # ── Highest Qualification ─────────────────────────────────────────
     QUALIFICATION_CHOICES = [
         ('wassce', 'WASSCE'),
+        ('hnd', 'HND'),
         ('diploma', 'Diploma'),
         ('bachelors', "Bachelor's Degree"),
         ('pgde', 'PGDE'),
@@ -108,8 +159,9 @@ class StaffProfile(models.Model):
         null=True, blank=True, related_name='staff_profile'
     )
 
-    # ── Identity ──────────────────────────────────────────────────────
+    # ── Identity ────────────────────────────────────────────────────
     staff_id = models.CharField(max_length=30, unique=True, blank=True)
+    title = models.CharField(max_length=10, choices=TITLE_CHOICES, blank=True)
     first_name = models.CharField(max_length=100)
     middle_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100)
@@ -123,17 +175,31 @@ class StaffProfile(models.Model):
     photo = models.ImageField(
         upload_to=staff_photo_path, null=True, blank=True
     )
+    fingerprint_data = models.FileField(
+        upload_to=staff_fingerprint_path, null=True, blank=True
+    )
+    blood_group = models.CharField(
+        max_length=10, choices=BLOOD_GROUP_CHOICES, default='unknown'
+    )
 
-    # ── Contact ───────────────────────────────────────────────────────
+    # ── Contact ─────────────────────────────────────────────────────
     phone = models.CharField(max_length=20)
     whatsapp_number = models.CharField(max_length=20, blank=True)
+    secondary_phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     residential_address = models.TextField(blank=True)
+    digital_address = models.CharField(max_length=20, blank=True)
     city = models.CharField(max_length=100, blank=True)
     region = models.CharField(max_length=30, choices=GHANA_REGIONS, blank=True)
 
-    # ── Official Documents ────────────────────────────────────────────
+    # ── Official Documents ─────────────────────────────────────────
     ghana_card_number = models.CharField(max_length=50, blank=True)
+    ghana_card_front = models.ImageField(
+        upload_to=staff_document_path, null=True, blank=True
+    )
+    ghana_card_back = models.ImageField(
+        upload_to=staff_document_path, null=True, blank=True
+    )
     ssnit_number = models.CharField(
         max_length=50, blank=True, verbose_name='SSNIT Number'
     )
@@ -155,9 +221,19 @@ class StaffProfile(models.Model):
         related_name='specialist_staff',
     )
 
-    # ── Employment ────────────────────────────────────────────────────
+    # ── Employment ──────────────────────────────────────────────────
     employment_type = models.CharField(
         max_length=20, choices=EMPLOYMENT_TYPE_CHOICES, default='permanent'
+    )
+    time_commitment = models.CharField(
+        max_length=10, choices=TIME_COMMITMENT_CHOICES, default='full_time'
+    )
+    staff_category = models.CharField(
+        max_length=15, choices=STAFF_CATEGORY_CHOICES, blank=True
+    )
+    position = models.ForeignKey(
+        'core.Position', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='staff'
     )
     salary_grade = models.CharField(max_length=50, blank=True)
     date_of_first_appointment = models.DateField(null=True, blank=True)
@@ -171,11 +247,11 @@ class StaffProfile(models.Model):
     termination_reason = models.TextField(blank=True)
     is_head_of_department = models.BooleanField(default=False)
 
-    # ── Leave ─────────────────────────────────────────────────────────
+    # ── Leave ───────────────────────────────────────────────────────
     leave_entitlement_days = models.PositiveIntegerField(default=21)
     leave_days_taken = models.PositiveIntegerField(default=0)
 
-    # ── Banking ───────────────────────────────────────────────────────
+    # ── Banking ─────────────────────────────────────────────────────
     bank_name = models.CharField(max_length=20, choices=BANK_CHOICES, blank=True)
     bank_branch = models.CharField(max_length=200, blank=True)
     bank_account_number = models.CharField(max_length=50, blank=True)

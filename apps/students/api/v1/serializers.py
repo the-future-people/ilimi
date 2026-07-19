@@ -6,6 +6,7 @@ from apps.students.models import (
     StudentGuardian,
     EmergencyContact,
     StudentClassHistory,
+    EnrolmentInvite,
 )
 
 
@@ -38,6 +39,25 @@ class GuardianCreateSerializer(serializers.ModelSerializer):
             'ghana_card_number', 'ghana_card_front', 'ghana_card_back',
             'photo', 'fingerprint_data', 'can_pickup',
             'is_fee_payer', 'is_primary',
+        ]
+
+class GuardianPublicCreateSerializer(serializers.ModelSerializer):
+    """
+    Guardian fields collectable from a parent on their own phone —
+    no file uploads (photo, fingerprint, Ghana Card images), since
+    those are collected in person at the school.
+    """
+    is_primary = serializers.BooleanField(default=False)
+    occupation_name = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = Guardian
+        fields = [
+            'title', 'first_name', 'last_name', 'relationship',
+            'occupation_name', 'employer', 'nationality',
+            'phone', 'whatsapp_number', 'secondary_phone', 'email',
+            'residential_address', 'digital_address',
+            'ghana_card_number', 'can_pickup', 'is_fee_payer', 'is_primary',
         ]
 
 
@@ -219,3 +239,83 @@ class StudentUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         exclude = ['school', 'branch', 'student_id', 'fingerprint_data']
+
+
+# ── Enrolment Invite Serializers ───────────────────────────────────────────
+
+class EnrolmentInviteCreateSerializer(serializers.ModelSerializer):
+    """Admin-facing: create a new invite."""
+
+    class Meta:
+        model = EnrolmentInvite
+        fields = ['prospective_first_name', 'prospective_last_name', 'parent_phone']
+
+
+class EnrolmentInviteListSerializer(serializers.ModelSerializer):
+    """Admin-facing: list/queue view."""
+    invited_by_name = serializers.CharField(source='invited_by.user.full_name', read_only=True)
+    is_expired = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = EnrolmentInvite
+        fields = [
+            'id', 'token', 'prospective_first_name', 'prospective_last_name',
+            'parent_phone', 'status', 'is_expired', 'submitted_at',
+            'invited_by_name', 'expires_at', 'created_at',
+        ]
+
+
+class EnrolmentInvitePublicSerializer(serializers.Serializer):
+    """
+    Public-facing: what the parent's page sees before filling the form.
+    Deliberately minimal — no internal IDs, no school-wide data, just
+    enough to render the page header. Not a ModelSerializer since this
+    is a read-only, hand-picked projection, not a model mirror.
+    """
+    school_name = serializers.CharField()
+    prospective_first_name = serializers.CharField()
+    prospective_last_name = serializers.CharField()
+
+
+class EnrolmentInviteSubmissionSerializer(serializers.Serializer):
+    """
+    Validates what a parent submits via the public enrolment link.
+    Deliberately excludes: fingerprint_data (needs the physical device),
+    current_class (the school assigns this at review, not the parent),
+    and sibling_ids (unauthenticated linking to arbitrary students is a
+    security risk not worth opening). Photo is handled as a separate
+    file upload, not part of this JSON-shaped payload.
+    """
+    first_name = serializers.CharField(max_length=100)
+    middle_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100)
+    date_of_birth = serializers.DateField()
+    gender = serializers.ChoiceField(choices=Student.GENDER_CHOICES)
+    place_of_birth = serializers.CharField(required=False, allow_blank=True)
+    home_town = serializers.CharField(required=False, allow_blank=True)
+    nationality = serializers.CharField(required=False, allow_blank=True, default='Ghanaian')
+    mother_tongue = serializers.CharField(required=False, allow_blank=True)
+    ghana_card_number = serializers.CharField(required=False, allow_blank=True)
+    birth_certificate_number = serializers.CharField(required=False, allow_blank=True)
+    nhis_number = serializers.CharField(required=False, allow_blank=True)
+    residential_address = serializers.CharField(required=False, allow_blank=True)
+    city = serializers.CharField(required=False, allow_blank=True)
+    region = serializers.CharField(required=False, allow_blank=True)
+    religion = serializers.CharField(required=False, allow_blank=True)
+    blood_group = serializers.CharField(required=False, allow_blank=True)
+    known_allergies = serializers.CharField(required=False, allow_blank=True)
+    medical_notes = serializers.CharField(required=False, allow_blank=True)
+    disability_status = serializers.BooleanField(required=False, default=False)
+    disability_description = serializers.CharField(required=False, allow_blank=True)
+    previous_school = serializers.CharField(required=False, allow_blank=True)
+    boarding_status = serializers.CharField(required=False, allow_blank=True)
+    talents_skills = serializers.CharField(required=False, allow_blank=True)
+    additional_notes = serializers.CharField(required=False, allow_blank=True)
+
+    guardians = GuardianPublicCreateSerializer(many=True)
+    emergency_contacts = EmergencyContactCreateSerializer(many=True, required=False, default=list)
+
+    def validate_guardians(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one guardian is required.")
+        return value

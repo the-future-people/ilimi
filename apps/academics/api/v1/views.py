@@ -355,4 +355,5 @@ class MySchoolClassroomsView(SchoolScopedMixin, GenericAPIView):
             'classrooms': serializer.data,
             'count': classrooms.count(),
             'academic_year': current_year.name,
+            'academic_year_id': current_year.id,
         })

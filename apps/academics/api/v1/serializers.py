@@ -3,6 +3,8 @@ from apps.academics.models import (
     AcademicYear, Term, ClassLevel, ClassRoom, Subject, SubjectAssignment
 )
 from apps.tenants.models import SchoolMember
+from apps.tenants.models import SchoolMember, Branch
+from apps.academics.services.setup import get_or_create_class_level
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):
@@ -93,18 +95,66 @@ class ClassRoomSerializer(serializers.ModelSerializer):
 
 
 class ClassRoomCreateSerializer(serializers.ModelSerializer):
+    """
+    Accepts either an existing class_level PK or a class_level_name from
+    ClassLevel.LEVEL_CHOICES, which is get-or-created for the school.
+
+    The name path is what the Classes tab uses: a school picks 'JHS 1' from
+    a dropdown and the ClassLevel is created behind the scenes, so creating
+    a class is one action rather than two.
+    """
+
+    class_level = serializers.PrimaryKeyRelatedField(
+        queryset=ClassLevel.objects.all(), required=False
+    )
+    class_level_name = serializers.ChoiceField(
+        choices=ClassLevel.LEVEL_CHOICES, required=False, write_only=True
+    )
+
     class Meta:
         model = ClassRoom
         fields = [
-            'class_level', 'section_name', 'elective_group',
-            'form_teacher', 'branch', 'capacity', 'is_active',
+            'class_level', 'class_level_name', 'section_name',
+            'elective_group', 'form_teacher', 'branch',
+            'capacity', 'is_active',
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        school = self.context.get('school')
+        if school is not None:
+            # Scope relations to the school — without this a caller can
+            # reference another tenant's level, teacher or branch by id.
+            self.fields['class_level'].queryset = ClassLevel.objects.filter(
+                school=school
+            )
+            self.fields['form_teacher'].queryset = SchoolMember.objects.filter(
+                school=school, is_active=True
+            )
+            self.fields['branch'].queryset = Branch.objects.filter(school=school)
 
     def validate(self, attrs):
         school = self.context['school']
         academic_year = self.context['academic_year']
+
         class_level = attrs.get('class_level')
+        level_name = attrs.pop('class_level_name', None)
+
+        if class_level is None:
+            if level_name is None:
+                if self.instance:
+                    class_level = self.instance.class_level
+                else:
+                    raise serializers.ValidationError({
+                        'class_level': 'Provide either class_level or class_level_name.'
+                    })
+            else:
+                class_level = get_or_create_class_level(school, level_name)
+                attrs['class_level'] = class_level
+
         section_name = attrs.get('section_name', '')
+        if not section_name and self.instance:
+            section_name = self.instance.section_name
 
         qs = ClassRoom.objects.filter(
             school=school,
@@ -116,7 +166,8 @@ class ClassRoomCreateSerializer(serializers.ModelSerializer):
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise serializers.ValidationError(
-                f"A classroom '{class_level} {section_name}' already exists for this academic year."
+                f"A classroom '{class_level.display_name} {section_name}' "
+                f"already exists for this academic year."
             )
         return attrs
 

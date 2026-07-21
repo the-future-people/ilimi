@@ -11,6 +11,12 @@ from .views import (
     SubjectAssignmentListCreateView,
     MySchoolClassroomsView,
 )
+
+from .setup_views import (
+    GESCalendarTemplateListView,
+    AcademicYearSetupView,
+)
+
 from .ca_views import (
     CAComponentTypeListView,
     CAComponentListCreateView,
@@ -24,6 +30,10 @@ urlpatterns = [
     # Academic Years
     path('years/', AcademicYearListCreateView.as_view(), name='academic-year-list'),
     path('years/<int:pk>/', AcademicYearDetailView.as_view(), name='academic-year-detail'),
+
+    # Year setup (GES-template-driven, creates year + all terms atomically)
+    path('calendar-templates/', GESCalendarTemplateListView.as_view(), name='ges-calendar-templates'),
+    path('years/setup/', AcademicYearSetupView.as_view(), name='academic-year-setup'),
 
     # Terms (nested under academic year)
     path('years/<int:year_pk>/terms/', TermListCreateView.as_view(), name='term-list'),

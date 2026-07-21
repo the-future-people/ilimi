@@ -8,6 +8,7 @@ from .ca_component_type import CAComponentType
 from .ca_component import CAComponent
 from .ca_component_score import CAComponentScore
 from .ca_score import CAScore
+from .ges_calendar import GESCalendarTemplate, GESCalendarTermTemplate
 
 __all__ = [
     'AcademicYear',
@@ -20,4 +21,6 @@ __all__ = [
     'CAComponent',
     'CAComponentScore',
     'CAScore',
+    'GESCalendarTemplate',
+    'GESCalendarTermTemplate',
 ]

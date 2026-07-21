@@ -23,6 +23,14 @@ class ClassLevel(models.Model):
         ('other', 'Other'),
     ]
 
+    # Derived from LEVEL_CHOICES position — the list is already in correct
+    # academic sequence, so order should never be set by hand. 'other'
+    # sorts last so ad-hoc levels don't interleave with the real ladder.
+    LEVEL_ORDER = {
+        choice[0]: (999 if choice[0] == 'other' else index)
+        for index, choice in enumerate(LEVEL_CHOICES)
+    }
+
     school = models.ForeignKey(
         School, on_delete=models.CASCADE, related_name='class_levels'
     )
@@ -37,6 +45,12 @@ class ClassLevel(models.Model):
     class Meta:
         unique_together = ('school', 'name')
         ordering = ['order', 'name']
+    
+    def save(self, *args, **kwargs):
+        # Auto-derive order unless explicitly overridden by a non-zero value.
+        if not self.order:
+            self.order = self.LEVEL_ORDER.get(self.name, 999)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.custom_name or self.get_name_display()

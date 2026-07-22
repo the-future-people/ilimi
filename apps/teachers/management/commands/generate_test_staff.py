@@ -185,12 +185,15 @@ class Command(BaseCommand):
 
         position, _ = Position.objects.get_or_create(name=position_name)
 
-        # Placeholder-only User + SchoolMember — never intended to log in
-        unique_suffix = ''.join(random.choices('0123456789', k=6))
-        placeholder_email = f"staff.{unique_suffix}@placeholder.ilimi.local"
+        # Placeholder-only User + SchoolMember — never intended to log in.
+        # Email must be genuinely unique: derive it from the school and a
+        # per-user UUID, not random digits (which can collide within a run).
+        import uuid
+        unique_suffix = uuid.uuid4().hex[:12]
+        placeholder_email = f"staff.{school.id}.{unique_suffix}@placeholder.ilimi.local"
         user = User.objects.create_user(
             email=placeholder_email,
-            password=User.objects.make_random_password() if hasattr(User.objects, 'make_random_password') else 'PlaceholderNotForLogin!123',
+            password='PlaceholderNotForLogin!123',
             first_name=first_name,
             last_name=last_name,
         )

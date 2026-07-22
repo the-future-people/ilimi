@@ -46,7 +46,8 @@ LOCAL_APPS = [
     'apps.reports',
     'apps.dashboard',
     'apps.documents',
-    'apps.communications'
+    'apps.communications',
+    'apps.agamotto'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -142,6 +143,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_RATES': {
+        'demo_request': '10/hour',
+    },
 }
 
 # ── SimpleJWT ──────────────────────────────────────────────────────────────

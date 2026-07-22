@@ -14,4 +14,5 @@ urlpatterns = [
     path("v1/documents/", include("apps.documents.api.v1.urls")),
     path("v1/core/", include("apps.core.api.v1.urls")),
     path("v1/communications/", include("apps.communications.api.v1.urls")),
+    path("v1/agamotto/", include("apps.agamotto.api.v1.urls")),
 ]

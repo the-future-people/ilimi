@@ -142,7 +142,21 @@ class ClassLevelListCreateView(SchoolScopedMixin, GenericAPIView):
         school = self.get_school()
         levels = ClassLevel.objects.filter(school=school, is_active=True)
         serializer = ClassLevelSerializer(levels, many=True)
-        return Response({'class_levels': serializer.data, 'count': levels.count()})
+        return Response({
+            'class_levels': serializer.data,
+            'count': levels.count(),
+            # The full GES ladder, so the frontend never hardcodes a copy of
+            # LEVEL_CHOICES. Ordered by ClassLevel.LEVEL_ORDER, which is the
+            # single source of truth for class seniority.
+            'available_levels': [
+                {
+                    'name': value,
+                    'display_name': label,
+                    'order': ClassLevel.LEVEL_ORDER.get(value, 999),
+                }
+                for value, label in ClassLevel.LEVEL_CHOICES
+            ],
+        })
 
     def post(self, request, *args, **kwargs):
         school = self.get_school()

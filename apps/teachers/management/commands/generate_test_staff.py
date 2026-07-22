@@ -243,6 +243,21 @@ class Command(BaseCommand):
             next_of_kin_address=f"House No. {random.randint(1, 300)}, {random.choice(HOME_TOWNS)}",
         )
 
-        position_title='other',
+        member = SchoolMember.objects.create(
+            user=user,
+            school=school,
+            branch=branch,
+            role='teacher' if category == 'teaching' else 'accountant',
+            position_title='other',
+            is_active=True,
+            has_seen_tour=True,
+        )
+
+        member = SchoolMember.objects.create(
+            user=user, school=school, branch=branch,
+            role='teacher' if category == 'teaching' else 'accountant',
+            position_title='other',
+            is_active=True, has_seen_tour=True,
+        )
 
         return staff, member

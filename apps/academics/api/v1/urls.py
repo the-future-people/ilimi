@@ -9,6 +9,7 @@ from .views import (
     SubjectListCreateView,
     SubjectDetailView,
     SubjectAssignmentListCreateView,
+    SubjectAssignmentDetailView,
     MySchoolClassroomsView,
 )
 
@@ -51,6 +52,8 @@ urlpatterns = [
 
     # Subject Assignments
     path('assignments/', SubjectAssignmentListCreateView.as_view(), name='assignment-list'),
+    path('assignments/<int:pk>/', SubjectAssignmentDetailView.as_view(), name='assignment-detail'),
+    path('assignments/<int:pk>/', SubjectAssignmentDetailView.as_view(), name='assignment-detail'),
 
     # CA Scores
     path('ca-component-types/', CAComponentTypeListView.as_view(), name='ca-component-type-list'),

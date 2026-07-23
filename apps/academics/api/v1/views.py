@@ -327,6 +327,25 @@ class SubjectAssignmentListCreateView(SchoolScopedMixin, GenericAPIView):
         serializer = SubjectAssignmentSerializer(assignments, many=True)
         return Response({'assignments': serializer.data, 'count': assignments.count()})
 
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        assignments = SubjectAssignment.objects.filter(
+            classroom__school=school
+        ).select_related(
+            'subject', 'classroom__class_level', 'teacher__user', 'term'
+        )
+
+        classroom_id = request.query_params.get('classroom')
+        if classroom_id:
+            assignments = assignments.filter(classroom_id=classroom_id)
+
+        term_id = request.query_params.get('term')
+        if term_id:
+            assignments = assignments.filter(term_id=term_id)
+
+        serializer = SubjectAssignmentSerializer(assignments, many=True)
+        return Response({'assignments': serializer.data, 'count': assignments.count()})
+
     def post(self, request, *args, **kwargs):
         school = self.get_school()
         serializer = SubjectAssignmentCreateSerializer(
@@ -341,6 +360,39 @@ class SubjectAssignmentListCreateView(SchoolScopedMixin, GenericAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+@extend_schema(tags=["Academics"])
+class SubjectAssignmentDetailView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = SubjectAssignmentSerializer
+
+    def get_object(self, school, pk):
+        try:
+            return SubjectAssignment.objects.get(classroom__school=school, pk=pk)
+        except SubjectAssignment.DoesNotExist:
+            raise NotFound("Assignment not found.")
+
+    def patch(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        assignment = self.get_object(school, pk)
+        serializer = SubjectAssignmentCreateSerializer(
+            assignment, data=request.data, partial=True, context={'school': school}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({
+            'message': 'Assignment updated.',
+            **SubjectAssignmentSerializer(assignment).data,
+        })
+
+    def delete(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        assignment = self.get_object(school, pk)
+        assignment.delete()
+        return Response({'message': 'Assignment removed.'}, status=status.HTTP_204_NO_CONTENT)
+
 
 @extend_schema(tags=["Academics"])
 class MySchoolClassroomsView(SchoolScopedMixin, GenericAPIView):

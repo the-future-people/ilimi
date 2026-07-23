@@ -222,14 +222,35 @@ class SubjectAssignmentSerializer(serializers.ModelSerializer):
 
 
 class SubjectAssignmentCreateSerializer(serializers.ModelSerializer):
+    """
+    Create/update a teacher-subject-classroom-term assignment.
+
+    Scoped to the requesting school in __init__ — without this a caller
+    could reference another tenant's classroom, subject, or teacher by id,
+    the same class of bug fixed on ClassRoomCreateSerializer.
+    """
+
     class Meta:
         model = SubjectAssignment
         fields = ['subject', 'classroom', 'teacher', 'term', 'periods_per_week']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        school = self.context.get('school')
+        if school is not None:
+            self.fields['classroom'].queryset = ClassRoom.objects.filter(school=school)
+            self.fields['subject'].queryset = Subject.objects.filter(school=school)
+            self.fields['teacher'].queryset = SchoolMember.objects.filter(
+                school=school, is_active=True
+            )
+            self.fields['term'].queryset = Term.objects.filter(
+                academic_year__school=school
+            )
+
     def validate(self, attrs):
-        classroom = attrs.get('classroom')
-        subject = attrs.get('subject')
-        term = attrs.get('term')
+        classroom = attrs.get('classroom', getattr(self.instance, 'classroom', None))
+        subject = attrs.get('subject', getattr(self.instance, 'subject', None))
+        term = attrs.get('term', getattr(self.instance, 'term', None))
 
         qs = SubjectAssignment.objects.filter(
             classroom=classroom, subject=subject, term=term

@@ -12,11 +12,11 @@ class DemoRequestSerializer(serializers.ModelSerializer):
     (status, source, ip, user_agent) are never accepted from the client.
     """
 
-    website = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    hp_ilimi_x92 = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta:
         model = DemoRequest
-        fields = ['name', 'email', 'phone', 'school_name', 'message', 'website']
+        fields = ['name', 'email', 'phone', 'school_name', 'message', 'hp_ilimi_x92']
 
     def validate_name(self, value):
         if not value.strip():
@@ -32,7 +32,7 @@ class DemoRequestSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         # Honeypot: content here means a bot. Generic error so it can't tell
         # it was detected.
-        if attrs.get('website'):
+        if attrs.get('hp_ilimi_x92'):
             raise serializers.ValidationError("Submission could not be processed.")
-        attrs.pop('website', None)
+        attrs.pop('hp_ilimi_x92', None)
         return attrs

@@ -72,6 +72,11 @@ class StaffProfileListSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True)
     position_name = serializers.CharField(source='position.name', read_only=True)
     badges = serializers.SerializerMethodField()
+    # SubjectAssignment.teacher and ClassRoom.form_teacher are FKs to
+    # SchoolMember, NOT StaffProfile — a separate table with separate ids.
+    # Anything that assigns a teacher via this staff list must use this id,
+    # not `id` (which is the StaffProfile pk and means nothing to those FKs).
+    school_member_id = serializers.SerializerMethodField()
 
     class Meta:
         model = StaffProfile
@@ -80,6 +85,7 @@ class StaffProfileListSerializer(serializers.ModelSerializer):
             'phone', 'email', 'employment_type', 'time_commitment', 'staff_category',
             'position_name', 'status', 'badges',
             'branch_name', 'date_joined_school', 'photo',
+            'school_member_id',
         ]
 
     def get_full_name(self, obj):
@@ -88,6 +94,13 @@ class StaffProfileListSerializer(serializers.ModelSerializer):
     def get_badges(self, obj):
         types_present = {r.record_type for r in obj.records.all()}
         return [t for t in ('award', 'commendation') if t in types_present]
+
+    def get_school_member_id(self, obj):
+        from apps.tenants.models import SchoolMember
+        member = SchoolMember.objects.filter(
+            user=obj.user, school=obj.school, is_active=True
+        ).first()
+        return member.id if member else None
 
 
 class StaffProfileCreateSerializer(serializers.ModelSerializer):

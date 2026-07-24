@@ -12,6 +12,7 @@ from drf_spectacular.utils import extend_schema
 
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
+from apps.tenants.api.permissions import HasDomainPermission
 from apps.fees.models import (
     FeeType,
     FeeStructure,
@@ -59,7 +60,8 @@ class SchoolScopedMixin:
 
 @extend_schema(tags=["Fees"])
 class FeeTypeListCreateView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = FeeTypeSerializer
 
@@ -87,7 +89,8 @@ class FeeTypeListCreateView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class FeeTypeDetailView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = FeeTypeSerializer
 
@@ -121,7 +124,8 @@ class FeeTypeDetailView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class FeeStructureListCreateView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = FeeStructureSerializer
 
@@ -163,7 +167,8 @@ class FeeStructureListCreateView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class FeeStructureDetailView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = FeeStructureSerializer
 
@@ -197,7 +202,8 @@ class FeeStructureDetailView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class StudentFeeListCreateView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = StudentFeeSerializer
 
@@ -242,7 +248,8 @@ class StudentFeeListCreateView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class StudentFeeDetailView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = StudentFeeSerializer
 
@@ -276,7 +283,8 @@ class StudentFeeDetailView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class PaymentListCreateView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = PaymentSerializer
 
@@ -320,7 +328,8 @@ class PaymentListCreateView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class PaymentDetailView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = PaymentSerializer
 
@@ -340,7 +349,8 @@ class PaymentDetailView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class InstallmentPlanListCreateView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = InstallmentPlanSerializer
 
@@ -396,7 +406,8 @@ class InstallmentPlanListCreateView(SchoolScopedMixin, GenericAPIView):
 
 @extend_schema(tags=["Fees"])
 class InstallmentPlanDetailView(SchoolScopedMixin, GenericAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = InstallmentPlanSerializer
 

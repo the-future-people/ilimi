@@ -7,6 +7,7 @@ class SchoolMember(models.Model):
         ('branch_manager', 'Branch Manager'),
         ('teacher', 'Teacher'),
         ('accountant', 'Accountant'),
+        ('registrar', 'Registrar'),
         ('receptionist', 'Receptionist'),
     ]
 

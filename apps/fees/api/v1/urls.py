@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     FeeTypeListCreateView,
     FeeTypeDetailView,
+    FeeTypeSummaryView,
     FeeStructureListCreateView,
     FeeStructureDetailView,
     StudentFeeListCreateView,
@@ -16,6 +17,7 @@ urlpatterns = [
     # Fee Types
     path('types/', FeeTypeListCreateView.as_view(), name='fee-type-list-create'),
     path('types/<int:pk>/', FeeTypeDetailView.as_view(), name='fee-type-detail'),
+    path('types/summary/', FeeTypeSummaryView.as_view(), name='fee-type-summary'),
 
     # Fee Structures
     path('structures/', FeeStructureListCreateView.as_view(), name='fee-structure-list-create'),

@@ -13,6 +13,8 @@ from drf_spectacular.utils import extend_schema
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.tenants.api.permissions import HasDomainPermission
+from django.db.models import Sum
+from apps.academics.models import AcademicYear
 from apps.fees.models import (
     FeeType,
     FeeStructure,
@@ -120,6 +122,48 @@ class FeeTypeDetailView(SchoolScopedMixin, GenericAPIView):
         })
 
 
+@extend_schema(tags=["Fees"])
+class FeeTypeSummaryView(SchoolScopedMixin, GenericAPIView):
+    """
+    Per-fee-type collection stats for the current term — percent collected
+    and total outstanding. Used by the Collect Payment landing screen so
+    an accountant can see at a glance which fee needs attention, before
+    picking one.
+    """
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        year = AcademicYear.objects.filter(school=school, is_current=True).first()
+        term = year.terms.filter(is_current=True).first() if year else None
+
+        summary = []
+        for ft in FeeType.objects.filter(school=school, is_active=True):
+            qs = StudentFee.objects.filter(school=school, fee_structure__fee_type=ft)
+            if term:
+                qs = qs.filter(term=term)
+            agg = qs.aggregate(
+                charged=Sum('amount_charged'), paid=Sum('amount_paid'), discount=Sum('discount'),
+            )
+            charged = agg['charged'] or 0
+            paid = agg['paid'] or 0
+            discount = agg['discount'] or 0
+            outstanding = float(charged) - float(discount) - float(paid)
+            percent = round((float(paid) / float(charged)) * 100) if charged else 0
+
+            summary.append({
+                'id': ft.id,
+                'name': ft.name,
+                'description': ft.description,
+                'percent_collected': percent,
+                'total_outstanding': round(outstanding, 2),
+            })
+
+        return Response({'fee_type_summary': summary})
+
+    
 # ── Fee Structures ────────────────────────────────────────────────────────
 
 @extend_schema(tags=["Fees"])

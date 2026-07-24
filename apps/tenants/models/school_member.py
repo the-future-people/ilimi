@@ -36,6 +36,14 @@ class SchoolMember(models.Model):
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    is_lead = models.BooleanField(
+        default=False,
+        help_text="Senior/primary person within this role at this school (e.g. "
+                   "the Main Accountant vs additional accountants). Unlocks "
+                   "sensitive within-domain actions — does NOT affect whether "
+                   "the domain itself is accessible; that's role-based, see "
+                   "apps/tenants/permissions.py."
+    )
     position_title = models.CharField(
         max_length=20, choices=POSITION_CHOICES, blank=True,
         help_text="Descriptive title for this person's position at the school — informational only, does not affect permissions."

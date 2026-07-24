@@ -50,3 +50,37 @@ def domains_for_role(role):
         domain for domain, level in ROLE_PERMISSIONS.get(role, {}).items()
         if level == 'full'
     ]
+
+# Sensitive, within-domain actions that require lead status on top of
+# ordinary domain access. Keyed by (role, action) so each role's lead
+# powers are named explicitly rather than inferred.
+LEAD_ONLY_ACTIONS = {
+    ('accountant', 'void_payment'),
+    ('accountant', 'edit_fee_structure'),
+    ('accountant', 'close_term_books'),
+    ('accountant', 'manage_accountants'),
+    ('registrar', 'approve_enrolment'),
+    ('registrar', 'generate_official_document'),
+    ('registrar', 'manage_registrars'),
+}
+
+
+def can_perform(member, action):
+    """
+    Check a specific sensitive action, e.g. can_perform(member, 'void_payment').
+
+    Domain access (can they open Fees at all) is a separate, earlier check
+    via has_domain_access — this only gates the smaller set of actions that
+    additionally require lead status within an already-accessible domain.
+    Admin-tier roles bypass this entirely; they're not subject to lead
+    tiering since they already have full access to everything.
+    """
+    if member is None:
+        return False
+    if member.role in ('school_admin', 'branch_manager'):
+        return True
+    if (member.role, action) not in LEAD_ONLY_ACTIONS:
+        # Not a lead-gated action at all — ordinary domain access already
+        # covers it, nothing further to check here.
+        return True
+    return bool(member.is_lead)

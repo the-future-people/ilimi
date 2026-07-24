@@ -1,7 +1,7 @@
 from rest_framework.permissions import BasePermission
-
 from apps.tenants.models import SchoolMember
 from apps.tenants.permissions import has_domain_access
+from apps.tenants.permissions import has_domain_access, can_perform
 
 
 class HasDomainPermission(BasePermission):
@@ -29,3 +29,22 @@ class HasDomainPermission(BasePermission):
         ).first()
 
         return has_domain_access(member, domain, level)
+
+
+class RequiresLeadFor(BasePermission):
+    """
+    Gate a specific view/action by lead status within the role, on top of
+    whatever HasDomainPermission already enforces. Set `required_action` as
+    a class attribute — must match a key in LEAD_ONLY_ACTIONS.
+    """
+
+    def has_permission(self, request, view):
+        action = getattr(view, 'required_action', None)
+        if action is None:
+            return False
+
+        member = SchoolMember.objects.filter(
+            user=request.user, is_active=True
+        ).first()
+
+        return can_perform(member, action)

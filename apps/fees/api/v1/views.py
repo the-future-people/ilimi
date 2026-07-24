@@ -15,6 +15,8 @@ from apps.tenants.models import SchoolMember
 from apps.tenants.api.permissions import HasDomainPermission
 from django.db.models import Sum
 from apps.academics.models import AcademicYear
+from apps.academics.models import AcademicYear
+from apps.academics.models import ClassRoom
 from apps.fees.models import (
     FeeType,
     FeeStructure,
@@ -163,6 +165,59 @@ class FeeTypeSummaryView(SchoolScopedMixin, GenericAPIView):
 
         return Response({'fee_type_summary': summary})
 
+
+@extend_schema(tags=["Fees"])
+class ClassroomFeeSummaryView(SchoolScopedMixin, GenericAPIView):
+    """
+    Per-classroom collection stats for one fee type, current term. Powers
+    the Collect Payment By-Class list: classes still owing sort to the
+    top, fully settled ones collapse — the list should tell the
+    accountant where to start, not make her eyeball eleven classes.
+    """
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'fees'
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        fee_type_id = request.query_params.get('fee_type')
+        if not fee_type_id:
+            return Response({'message': 'fee_type is required.'}, status=400)
+
+        year = AcademicYear.objects.filter(school=school, is_current=True).first()
+        term = year.terms.filter(is_current=True).first() if year else None
+
+        classrooms = ClassRoom.objects.filter(school=school, is_active=True).select_related('class_level')
+
+        summary = []
+        for c in classrooms:
+            qs = StudentFee.objects.filter(
+                school=school, fee_structure__fee_type_id=fee_type_id, student__current_class=c,
+            )
+            if term:
+                qs = qs.filter(term=term)
+            agg = qs.aggregate(charged=Sum('amount_charged'), paid=Sum('amount_paid'), discount=Sum('discount'))
+            charged = float(agg['charged'] or 0)
+            paid = float(agg['paid'] or 0)
+            discount = float(agg['discount'] or 0)
+            outstanding = round(charged - discount - paid, 2)
+            owing_count = qs.exclude(status__in=['paid', 'waived']).count()
+
+            if charged == 0:
+                continue  # this fee type doesn't apply to this classroom at all
+
+            summary.append({
+                'id': c.id,
+                'full_name': c.full_name,
+                'outstanding': outstanding,
+                'owing_count': owing_count,
+                'settled': outstanding <= 0,
+                'level_name': c.class_level.name,
+                'level_order': c.class_level.order,
+            })
+
+        summary.sort(key=lambda x: (x['level_order'], x['full_name']))
+        return Response({'classroom_summary': summary})
     
 # ── Fee Structures ────────────────────────────────────────────────────────
 

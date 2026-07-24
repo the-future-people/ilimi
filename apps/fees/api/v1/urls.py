@@ -11,6 +11,8 @@ from .views import (
     PaymentDetailView,
     InstallmentPlanListCreateView,
     InstallmentPlanDetailView,
+    FeeTypeSummaryView,
+    ClassroomFeeSummaryView,
 )
 
 urlpatterns = [
@@ -34,4 +36,5 @@ urlpatterns = [
     # Installment Plans
     path('installments/', InstallmentPlanListCreateView.as_view(), name='installment-plan-list-create'),
     path('installments/<int:pk>/', InstallmentPlanDetailView.as_view(), name='installment-plan-detail'),
+    path('classrooms/summary/', ClassroomFeeSummaryView.as_view(), name='classroom-fee-summary'),
 ]

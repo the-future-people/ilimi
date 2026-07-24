@@ -217,6 +217,8 @@ class StudentFeeListCreateView(SchoolScopedMixin, GenericAPIView):
         term_id = request.query_params.get('term')
         status_filter = request.query_params.get('status')
         class_level_id = request.query_params.get('class_level')
+        fee_type_id = request.query_params.get('fee_type')
+        classroom_id = request.query_params.get('classroom')
 
         if student_id:
             qs = qs.filter(student_id=student_id)
@@ -228,6 +230,10 @@ class StudentFeeListCreateView(SchoolScopedMixin, GenericAPIView):
             qs = qs.filter(
                 student__current_class__class_level_id=class_level_id
             )
+        if fee_type_id:
+            qs = qs.filter(fee_structure__fee_type_id=fee_type_id)
+        if classroom_id:
+            qs = qs.filter(student__current_class_id=classroom_id)
 
         serializer = StudentFeeSerializer(qs, many=True)
         return Response({'student_fees': serializer.data, 'count': qs.count()})

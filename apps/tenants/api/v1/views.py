@@ -9,6 +9,8 @@ from drf_spectacular.utils import extend_schema
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import School, Branch, SchoolMember
 
+from apps.tenants.api.permissions import HasDomainPermission
+
 from .serializers import (
     SchoolSerializer,
     SchoolUpdateSerializer,
@@ -18,6 +20,12 @@ from .serializers import (
     SchoolMemberInviteSerializer,
     MyMembershipSerializer,
 )
+
+# Only these roles may issue invites at all, and only school_admin may
+# grant admin-tier access. Prevents a limited-access role (e.g. accountant)
+# from inviting themselves or anyone else into a higher-privilege role.
+ROLES_THAT_CAN_INVITE = {'school_admin', 'branch_manager'}
+ADMIN_TIER_ROLES = {'school_admin', 'branch_manager'}
 
 
 
@@ -215,10 +223,26 @@ class MemberListInviteView(SchoolScopedMixin, GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         school = self.get_school()
+        inviter = self.get_member() if hasattr(self, 'get_member') else \
+            SchoolMember.objects.filter(user=request.user, school=school, is_active=True).first()
+
+        if not inviter or inviter.role not in ROLES_THAT_CAN_INVITE:
+            return Response(
+                {"message": "You do not have permission to invite members."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = SchoolMemberInviteSerializer(
             data=request.data, context={"school": school}
         )
         serializer.is_valid(raise_exception=True)
+
+        requested_role = serializer.validated_data.get('role')
+        if requested_role in ADMIN_TIER_ROLES and inviter.role != 'school_admin':
+            return Response(
+                {"message": "Only a School Administrator can grant admin-level access."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         from apps.tenants.services.invite import invite_member
         result = invite_member(
@@ -230,4 +254,4 @@ class MemberListInviteView(SchoolScopedMixin, GenericAPIView):
         return Response(
             {"message": result["message"]},
             status=status.HTTP_201_CREATED,
-    )
+        )

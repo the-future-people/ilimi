@@ -284,3 +284,132 @@ class PublicConsentRequestRespondView(GenericAPIView):
             return Response({'message': "decision must be 'granted' or 'denied'."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'message': 'Thank you — your response has been recorded.'})
+
+@extend_schema(tags=["Communications"])
+class MessageListCreateView(SchoolScopedMixin, GenericAPIView):
+    """
+    GET: admin-tier sees every message for the school (their approval
+    queue); a registrar sees only what she composed.
+    POST: admin-tier composing sends immediately. A registrar composing
+    creates a pending_approval record and sends nothing.
+    """
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'communications'
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = MessageSerializer
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        member = SchoolMember.objects.filter(
+            user=request.user, school=school, is_active=True
+        ).first()
+
+        qs = Message.objects.filter(school=school).select_related(
+            'composed_by__user', 'reviewed_by__user',
+            'target_student', 'target_staff_member__user', 'target_classroom',
+        )
+        if member and member.role not in ('school_admin', 'branch_manager'):
+            qs = qs.filter(composed_by=member)
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        serializer = MessageSerializer(qs, many=True)
+        return Response({'messages': serializer.data, 'count': qs.count()})
+
+    def post(self, request, *args, **kwargs):
+        school = self.get_school()
+        member = SchoolMember.objects.filter(
+            user=request.user, school=school, is_active=True
+        ).first()
+
+        serializer = MessageComposeSerializer(data=request.data, context={'school': school})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        is_admin_tier = member and member.role in ('school_admin', 'branch_manager')
+
+        if is_admin_tier:
+            message = Message.objects.create(
+                school=school, composed_by=member, status='approved', **data
+            )
+            success, failure = send_message(message, sent_by=member)
+            return Response(
+                {
+                    'message': f"Sent to {success} recipient{'s' if success != 1 else ''}"
+                               + (f" ({failure} failed)" if failure else ''),
+                    **MessageSerializer(message).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            message = request_message(school=school, composed_by=member, **data)
+            return Response(
+                {
+                    'message': 'Message sent to the admin for approval.',
+                    **MessageSerializer(message).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+
+@extend_schema(tags=["Communications"])
+class MessageApproveView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = MessageSerializer
+
+    def post(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        member = SchoolMember.objects.filter(
+            user=request.user, school=school, is_active=True
+        ).first()
+
+        if not member or member.role not in ('school_admin', 'branch_manager'):
+            return Response(
+                {'message': 'Only an admin can approve messages.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            message = Message.objects.get(school=school, pk=pk, status='pending_approval')
+        except Message.DoesNotExist:
+            raise NotFound("Pending message not found.")
+
+        success, failure = approve_message(message, reviewed_by=member)
+        return Response({
+            'message': f"Approved and sent to {success} recipient{'s' if success != 1 else ''}"
+                       + (f" ({failure} failed)" if failure else ''),
+            **MessageSerializer(message).data,
+        })
+
+
+@extend_schema(tags=["Communications"])
+class MessageDeclineView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = MessageSerializer
+
+    def post(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        member = SchoolMember.objects.filter(
+            user=request.user, school=school, is_active=True
+        ).first()
+
+        if not member or member.role not in ('school_admin', 'branch_manager'):
+            return Response(
+                {'message': 'Only an admin can decline messages.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            message = Message.objects.get(school=school, pk=pk, status='pending_approval')
+        except Message.DoesNotExist:
+            raise NotFound("Pending message not found.")
+
+        decline_message(message, reviewed_by=member, reason=request.data.get('reason', ''))
+        return Response({
+            'message': 'Message declined.',
+            **MessageSerializer(message).data,
+        })

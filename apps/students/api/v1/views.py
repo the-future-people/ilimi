@@ -14,6 +14,9 @@ from django.db.models import F, Prefetch
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.permissions import AllowAny
+from django.db.models import Q
+from apps.students.models import Guardian, StudentGuardian
+from apps.tenants.api.permissions import HasDomainPermission
 from apps.students.models import (
     Student,
     Guardian,
@@ -23,6 +26,8 @@ from apps.students.models import (
     EnrolmentInvite,
 )
 from .serializers import (
+    GuardianSerializer,
+    GuardianSerializer,
     StudentSerializer,
     StudentListSerializer,
     StudentEnrolSerializer,
@@ -278,6 +283,86 @@ class GuardianFileUploadView(SchoolScopedMixin, GenericAPIView):
         return Response({
             'field': field,
             'url': file_field.url if file_field else None,
+        })
+
+@extend_schema(tags=["Students"])
+class GuardianListView(SchoolScopedMixin, GenericAPIView):
+    """
+    Search guardians by name or phone, scoped to the school via their
+    linked students. A guardian has no direct school FK — they're only
+    ever reached through StudentGuardian, so scoping goes through that.
+    """
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'parents'
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = GuardianSerializer
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        search = request.query_params.get('search', '').strip()
+
+        guardian_ids = StudentGuardian.objects.filter(
+            student__school=school
+        ).values_list('guardian_id', flat=True).distinct()
+        qs = Guardian.objects.filter(id__in=guardian_ids)
+
+        if search:
+            qs = qs.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(secondary_phone__icontains=search)
+            )
+
+        qs = qs.distinct()[:30]  # cap results, this is a search box not a full list
+        serializer = GuardianSerializer(qs, many=True, context={'school': school})
+        return Response({'guardians': serializer.data, 'count': len(serializer.data)})
+
+@extend_schema(tags=["Students"])
+class GuardianDetailView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated, HasDomainPermission]
+    required_domain = 'parents'
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = GuardianSerializer
+
+    def get_object(self, school, pk):
+        exists = StudentGuardian.objects.filter(
+            guardian_id=pk, student__school=school
+        ).exists()
+        if not exists:
+            raise NotFound("Guardian not found.")
+        return Guardian.objects.get(pk=pk)
+
+    def get(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        guardian = self.get_object(school, pk)
+        links = StudentGuardian.objects.filter(
+            guardian=guardian, student__school=school
+        ).select_related('student', 'student__current_class')
+
+        children = [{
+            'student_id': link.student.id,
+            'full_name': link.student.full_name,
+            'student_number': link.student.student_id,
+            'classroom_name': link.student.current_class.full_name if link.student.current_class else None,
+            'relationship': link.relationship,
+            'is_primary': link.is_primary,
+            'photo': link.student.photo.url if link.student.photo else None,
+        } for link in links]
+
+        data = GuardianSerializer(guardian, context={'school': school}).data
+        data['children'] = children
+        return Response(data)
+
+    def patch(self, request, pk, *args, **kwargs):
+        school = self.get_school()
+        guardian = self.get_object(school, pk)
+        serializer = GuardianUpdateSerializer(guardian, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({
+            'message': f"{guardian.first_name} {guardian.last_name}'s details updated. This applies to all linked children.",
+            **GuardianSerializer(guardian, context={'school': school}).data,
         })
     
 @extend_schema(tags=["Students"])

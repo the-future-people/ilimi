@@ -14,6 +14,8 @@ from .views import (
     EnrolmentInviteRejectView,
     PublicEnrolmentInviteDetailView,
     PublicEnrolmentInviteSubmitView,
+    GuardianListView,
+    GuardianDetailView,
 )
 
 urlpatterns = [
@@ -35,4 +37,6 @@ urlpatterns = [
     # Enrolment invites — public, unauthenticated
     path('public/enrol/<uuid:token>/', PublicEnrolmentInviteDetailView.as_view(), name='public-enrolment-invite-detail'),
     path('public/enrol/<uuid:token>/submit/', PublicEnrolmentInviteSubmitView.as_view(), name='public-enrolment-invite-submit'),
+    path('guardians/', GuardianListView.as_view(), name='guardian-list'),
+    path('guardians/<int:pk>/', GuardianDetailView.as_view(), name='guardian-detail'),
 ]

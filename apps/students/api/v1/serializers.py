@@ -41,6 +41,21 @@ class GuardianCreateSerializer(serializers.ModelSerializer):
             'is_fee_payer', 'is_primary',
         ]
 
+class GuardianUpdateSerializer(serializers.ModelSerializer):
+    """
+    Contact-detail correction only — the fields a registrar realistically
+    needs to fix (wrong number, moved house), not the full profile.
+    Ghana Card, photo, and fingerprint stay in the enrolment flow, not
+    here, since those are collected in person and shouldn't be casually
+    editable from a search screen.
+    """
+    class Meta:
+        model = Guardian
+        fields = [
+            'phone', 'whatsapp_number', 'secondary_phone', 'email',
+            'residential_address', 'digital_address', 'employer',
+        ]
+
 class GuardianPublicCreateSerializer(serializers.ModelSerializer):
     """
     Guardian fields collectable from a parent on their own phone —

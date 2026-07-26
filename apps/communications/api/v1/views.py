@@ -8,7 +8,9 @@ from drf_spectacular.utils import extend_schema
 
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
-from apps.communications.models import Excursion, ConsentRequest
+from apps.tenants.api.permissions import HasDomainPermission
+from apps.communications.models import Excursion, ConsentRequest, Message
+from apps.communications.services.messaging import request_message, send_message, approve_message, decline_message
 from apps.communications.services.consent import (
     request_excursion_consents,
     create_consent_request,
@@ -23,6 +25,8 @@ from .serializers import (
     ConsentRequestListSerializer,
     ConsentRequestCreateSerializer,
     ConsentRequestPublicSerializer,
+    MessageSerializer,
+    MessageComposeSerializer,
 )
 
 

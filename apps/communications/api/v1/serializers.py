@@ -103,3 +103,70 @@ class ConsentRequestPublicSerializer(serializers.Serializer):
     excursion_description = serializers.CharField(allow_null=True)
     excursion_date = serializers.DateField(allow_null=True)
     excursion_location = serializers.CharField(allow_null=True)
+
+from apps.communications.models import Message
+from apps.academics.models import ClassRoom
+from apps.tenants.models import SchoolMember
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    composed_by_name = serializers.CharField(source='composed_by.user.full_name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.user.full_name', read_only=True)
+    audience_display = serializers.CharField(source='get_audience_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    target_student_name = serializers.CharField(source='target_student.full_name', read_only=True)
+    target_staff_name = serializers.CharField(source='target_staff_member.user.full_name', read_only=True)
+    target_classroom_name = serializers.CharField(source='target_classroom.full_name', read_only=True)
+
+    class Meta:
+        model = Message
+        fields = [
+            'id', 'title', 'body', 'audience_type', 'audience_display',
+            'target_student', 'target_student_name',
+            'target_staff_member', 'target_staff_name',
+            'target_classroom', 'target_classroom_name',
+            'status', 'status_display',
+            'composed_by', 'composed_by_name',
+            'reviewed_by', 'reviewed_by_name', 'reviewed_at', 'decline_reason',
+            'recipient_count', 'sent_at', 'created_at',
+        ]
+
+
+class MessageComposeSerializer(serializers.ModelSerializer):
+    """
+    Shape validation for composing a message. Target fields are scoped to
+    the requesting school in __init__ — same pattern as
+    SubjectAssignmentCreateSerializer — so a composer can't reference
+    another tenant's student/staff/classroom by id.
+    """
+
+    class Meta:
+        model = Message
+        fields = [
+            'title', 'body', 'audience_type',
+            'target_student', 'target_staff_member', 'target_classroom',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        school = self.context.get('school')
+        if school is not None:
+            self.fields['target_student'].queryset = Student.objects.filter(school=school)
+            self.fields['target_staff_member'].queryset = SchoolMember.objects.filter(
+                school=school, is_active=True
+            )
+            self.fields['target_classroom'].queryset = ClassRoom.objects.filter(school=school)
+
+    def validate(self, attrs):
+        audience = attrs.get('audience_type')
+        required_field = {
+            'single_guardian': 'target_student',
+            'single_staff': 'target_staff_member',
+            'class_guardians': 'target_classroom',
+        }.get(audience)
+
+        if required_field and not attrs.get(required_field):
+            raise serializers.ValidationError({
+                required_field: f"Required for audience type '{audience}'."
+            })
+        return attrs

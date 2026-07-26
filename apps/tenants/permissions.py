@@ -22,7 +22,7 @@ ROLE_PERMISSIONS = {
     'school_admin':   {d: 'full' for d in DOMAINS},
     'branch_manager': {d: 'full' for d in DOMAINS},
     'accountant':     {'fees': 'full'},
-    'registrar':      {'students': 'full', 'documents': 'full', 'reports': 'full'},
+    'registrar':      {'students': 'full', 'staff': 'full', 'documents': 'full', 'reports': 'full'},
     # Teachers operate through the separate /teacher/* route tree and its
     # own object-level checks (their own classes only) — not modeled here.
     'teacher':        {},

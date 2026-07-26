@@ -22,7 +22,7 @@ ROLE_PERMISSIONS = {
     'school_admin':   {d: 'full' for d in DOMAINS},
     'branch_manager': {d: 'full' for d in DOMAINS},
     'accountant':     {'fees': 'full'},
-    'registrar':      {'students': 'full', 'staff': 'full', 'documents': 'full', 'reports': 'full', 'parents': 'full'},
+    'registrar':      {'students': 'full', 'staff': 'full', 'documents': 'full', 'reports': 'full', 'parents': 'full', 'communications': 'request'},
     # Teachers operate through the separate /teacher/* route tree and its
     # own object-level checks (their own classes only) — not modeled here.
     'teacher':        {},
@@ -32,15 +32,15 @@ ROLE_PERMISSIONS = {
 
 
 def has_domain_access(member, domain, level='full'):
-    """
-    member: a SchoolMember instance (or any object exposing `.role`).
-    domain: one of DOMAINS.
-    level: the access level required — currently only 'full' is meaningful.
-    """
     if member is None:
         return False
     permissions = ROLE_PERMISSIONS.get(member.role, {})
-    return permissions.get(domain) == level
+    granted = permissions.get(domain)
+    if level == 'full':
+        return granted == 'full'
+    # 'request'-level access is satisfied by either an explicit 'request'
+    # grant or full access (full implies you can do anything a requester can).
+    return granted in ('full', 'request')
 
 
 def domains_for_role(role):

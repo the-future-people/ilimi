@@ -126,7 +126,7 @@ class PaymentReminderApproveView(SchoolScopedMixin, GenericAPIView):
         student = reminder.student
 
         guardian_phone = None
-        primary = student.guardians.filter(is_primary=True).select_related('guardian').first()
+        primary = student.student_guardians.filter(is_primary=True).select_related('guardian').first()
         if primary:
             guardian_phone = primary.guardian.phone
 

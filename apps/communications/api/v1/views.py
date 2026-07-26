@@ -287,14 +287,9 @@ class PublicConsentRequestRespondView(GenericAPIView):
 
 @extend_schema(tags=["Communications"])
 class MessageListCreateView(SchoolScopedMixin, GenericAPIView):
-    """
-    GET: admin-tier sees every message for the school (their approval
-    queue); a registrar sees only what she composed.
-    POST: admin-tier composing sends immediately. A registrar composing
-    creates a pending_approval record and sends nothing.
-    """
     permission_classes = [IsAuthenticated, HasDomainPermission]
     required_domain = 'communications'
+    required_level = 'request'
     renderer_classes = [IlimiAPIRenderer]
     serializer_class = MessageSerializer
 

@@ -243,7 +243,13 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
     renderer_classes = [IlimiAPIRenderer]
 
     def get(self, request, *args, **kwargs):
+        from django.utils import timezone
+        from django.db.models import Count
+        from apps.attendance.models import AttendanceRegister
+        from apps.academics.models import ClassworkRecord
+
         member = self.get_member()
+        today = timezone.localdate()
 
         assignments = SubjectAssignment.objects.filter(
             teacher=member
@@ -268,14 +274,47 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                     'class_level': a.classroom.class_level.display_name,
                     'academic_year': a.classroom.academic_year.name,
                     'student_count': student_count,
+                    'is_form_teacher': a.classroom.form_teacher_id == member.id,
+                    'attendance_due': False,
+                    'unmarked_count': 0,
                     'subjects': [],
                 }
 
-                classroom_map[cid]['subjects'].append({
+            classroom_map[cid]['subjects'].append({
                 'id': a.subject.id,
                 'name': a.subject.name,
                 'subject_assignment_id': a.id,
             })
+
+        classroom_ids = list(classroom_map.keys())
+
+        if classroom_ids:
+            taken_today = set(
+                AttendanceRegister.objects.filter(
+                    classroom_id__in=classroom_ids,
+                    date=today,
+                    submitted=True,
+                ).values_list('classroom_id', flat=True)
+            )
+
+            for cid, data in classroom_map.items():
+                if data['is_form_teacher'] and cid not in taken_today:
+                    data['attendance_due'] = True
+
+            unmarked = (
+                ClassworkRecord.objects.filter(
+                    classwork__classroom_id__in=classroom_ids,
+                    classwork__due_date__lt=today,
+                    status='not_done',
+                )
+                .values('classwork__classroom_id')
+                .annotate(n=Count('id'))
+            )
+
+            for row in unmarked:
+                cid = row['classwork__classroom_id']
+                if cid in classroom_map:
+                    classroom_map[cid]['unmarked_count'] = row['n']
 
         classrooms = list(classroom_map.values())
 

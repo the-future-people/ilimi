@@ -106,7 +106,7 @@ def save_component_scores(school, component, score_data, entered_by):
     return results, errors
 
 
-def compute_class_score(school, student, subject, term):
+def compute_class_score(school, student, subject, term, classroom=None):
     """
     Computes a student's class score (out of 30) from all component scores.
     Formula per component type:
@@ -121,12 +121,16 @@ def compute_class_score(school, student, subject, term):
 
     for comp_type in component_types:
         # Get all components of this type for this subject/term
-        components = CAComponent.objects.filter(
-            school=school,
-            subject=subject,
-            term=term,
-            component_type=comp_type,
-        )
+        component_filters = {
+            'school': school,
+            'subject': subject,
+            'term': term,
+            'component_type': comp_type,
+        }
+        if classroom is not None:
+            component_filters['classroom'] = classroom
+
+        components = CAComponent.objects.filter(**component_filters)
 
         if not components.exists():
             continue
@@ -171,7 +175,7 @@ def update_ca_score(school, student, subject, term, classroom, branch=None):
     """
     from apps.academics.models import CAScore
 
-    class_score = compute_class_score(school, student, subject, term)
+    class_score = compute_class_score(school, student, subject, term, classroom=classroom)
 
     score_obj, _ = CAScore.objects.get_or_create(
         student=student,

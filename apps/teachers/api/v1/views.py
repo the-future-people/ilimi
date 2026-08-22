@@ -289,7 +289,7 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
         classroom_ids = list(classroom_map.keys())
 
         if classroom_ids:
-            taken_today = set(
+                        taken_today = set(
                 AttendanceRegister.objects.filter(
                     classroom_id__in=classroom_ids,
                     date=today,
@@ -297,11 +297,11 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                 ).values_list('classroom_id', flat=True)
             )
 
-            for cid, data in classroom_map.items():
+        for cid, data in classroom_map.items():
                 if data['is_form_teacher'] and cid not in taken_today:
                     data['attendance_due'] = True
 
-            unmarked = (
+        unmarked = (
                 ClassworkRecord.objects.filter(
                     classwork__classroom_id__in=classroom_ids,
                     classwork__due_date__lt=today,
@@ -311,7 +311,7 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                 .annotate(n=Count('id'))
             )
 
-            for row in unmarked:
+        for row in unmarked:
                 cid = row['classwork__classroom_id']
                 if cid in classroom_map:
                     classroom_map[cid]['unmarked_count'] = row['n']

@@ -293,6 +293,7 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                 'id': a.subject.id,
                 'name': a.subject.name,
                 'subject_assignment_id': a.id,
+                'term_id': a.term_id,
             })
 
         classroom_ids = list(classroom_map.keys())

@@ -19,6 +19,9 @@ from .ca_serializers import (
     CAComponentCreateSerializer,
     CAComponentScoreSerializer,
     CAScoreSerializer,
+    ClassworkFullSerializer,
+    ClassworkCreateFullSerializer,
+    ClassworkRecordFullSerializer,
 )
 
 
@@ -263,3 +266,120 @@ class CAScoresSubmitView(SchoolScopedMixin, GenericAPIView):
             return Response({'message': str(e)}, status=400)
 
         return Response({'message': 'Scores submitted and locked successfully.'})
+
+# ── Classwork (teacher panel) ─────────────────────────────────────────────
+
+@extend_schema(tags=["Classwork"])
+class ClassworkListCreateView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = ClassworkFullSerializer
+
+    def get(self, request, *args, **kwargs):
+        school = self.get_school()
+        classroom_id = request.query_params.get('classroom')
+        subject_id = request.query_params.get('subject')
+        term_id = request.query_params.get('term')
+
+        qs = Classwork.objects.filter(school=school).select_related(
+            'component_type', 'subject'
+        ).prefetch_related('records')
+
+        if classroom_id:
+            qs = qs.filter(classroom_id=classroom_id)
+        if subject_id:
+            qs = qs.filter(subject_id=subject_id)
+        if term_id:
+            qs = qs.filter(term_id=term_id)
+
+        serializer = ClassworkFullSerializer(qs, many=True)
+        return Response({'classwork': serializer.data, 'count': qs.count()})
+
+    def post(self, request, *args, **kwargs):
+        from apps.academics.services.ca_service import create_classwork_with_records
+
+        member = self.get_member()
+        school = member.school
+
+        serializer = ClassworkCreateFullSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        classwork = create_classwork_with_records(
+            school=school,
+            branch=member.branch,
+            created_by=member,
+            **data,
+        )
+
+        return Response({
+            'message': f"'{classwork.name}' posted to the class.",
+            'classwork': ClassworkFullSerializer(classwork).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["Classwork"])
+class ClassworkRecordListView(SchoolScopedMixin, GenericAPIView):
+    """The marking screen: every student's record for one piece of work."""
+
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = ClassworkRecordFullSerializer
+
+    def get(self, request, classwork_id, *args, **kwargs):
+        school = self.get_school()
+
+        try:
+            classwork = Classwork.objects.select_related('component_type').get(
+                id=classwork_id, school=school
+            )
+        except Classwork.DoesNotExist:
+            raise NotFound("Classwork not found.")
+
+        records = classwork.records.select_related('student').order_by(
+            'student__last_name', 'student__first_name'
+        )
+
+        return Response({
+            'classwork': ClassworkFullSerializer(classwork).data,
+            'records': ClassworkRecordFullSerializer(records, many=True).data,
+            'count': records.count(),
+        })
+
+
+@extend_schema(tags=["Classwork"])
+class ClassworkMarkView(SchoolScopedMixin, GenericAPIView):
+    """
+    Bulk mark. Accepts status, score, or both:
+        {"records": [{"record_id": 1, "status": "done", "score": 8}]}
+    Recomputes CA scores only when the classwork is graded.
+    """
+
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, classwork_id, *args, **kwargs):
+        from apps.academics.services.ca_service import mark_classwork_records
+
+        member = self.get_member()
+        school = member.school
+
+        try:
+            classwork = Classwork.objects.select_related(
+                'component_type', 'subject', 'term', 'classroom'
+            ).get(id=classwork_id, school=school)
+        except Classwork.DoesNotExist:
+            raise NotFound("Classwork not found.")
+
+        results, errors = mark_classwork_records(
+            school=school,
+            classwork=classwork,
+            record_data=request.data.get('records', []),
+            marked_by=member,
+        )
+
+        return Response({
+            'message': f"{len(results)} record(s) saved.",
+            'saved': len(results),
+            'errors': errors,
+        })

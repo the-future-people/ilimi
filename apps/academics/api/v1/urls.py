@@ -25,6 +25,9 @@ from .ca_views import (
     CAScoreListView,
     CAExamScoreSaveView,
     CAScoresSubmitView,
+    ClassworkListCreateView,
+    ClassworkRecordListView,
+    ClassworkMarkView,
 )
 
 urlpatterns = [
@@ -62,5 +65,10 @@ urlpatterns = [
     path('ca-scores/', CAScoreListView.as_view(), name='ca-score-list'),
     path('ca-scores/exam/<int:student_id>/', CAExamScoreSaveView.as_view(), name='ca-exam-score-save'),
     path('ca-scores/submit/', CAScoresSubmitView.as_view(), name='ca-scores-submit'),
+
+    # Classwork
+    path('classwork/', ClassworkListCreateView.as_view(), name='classwork-list-create'),
+    path('classwork/<int:classwork_id>/records/', ClassworkRecordListView.as_view(), name='classwork-records'),
+    path('classwork/<int:classwork_id>/mark/', ClassworkMarkView.as_view(), name='classwork-mark'),
     path('my-classrooms/', MySchoolClassroomsView.as_view(), name='my-school-classrooms'),
 ]

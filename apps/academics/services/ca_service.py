@@ -262,3 +262,139 @@ def submit_ca_scores(school, classroom, subject, term, submitted_by, branch=None
 # Backward-compatible aliases — remove once views are updated.
 create_ca_component = create_classwork
 save_component_scores = save_classwork_scores
+
+def create_classwork_with_records(school, classroom, subject, term, name, date,
+                                  created_by, branch=None, work_type='homework',
+                                  component_type=None, instructions='', attachment=None,
+                                  max_score=None, due_date=None,
+                                  visible_to_parents=True, allows_digital_submission=False):
+    """
+    Creates a piece of classwork and pre-builds one record per active student,
+    so the teacher's marking list is ready rather than assembled by hand.
+    """
+    from apps.academics.models import Classwork, ClassworkRecord
+    from apps.students.models import Student
+
+    with transaction.atomic():
+        classwork = Classwork.objects.create(
+            school=school,
+            branch=branch,
+            classroom=classroom,
+            subject=subject,
+            term=term,
+            work_type=work_type,
+            component_type=component_type,
+            name=name,
+            instructions=instructions,
+            attachment=attachment,
+            max_score=max_score,
+            date=date,
+            due_date=due_date,
+            visible_to_parents=visible_to_parents,
+            allows_digital_submission=allows_digital_submission,
+            created_by=created_by,
+        )
+
+        students = Student.objects.filter(
+            current_class=classroom,
+            school=school,
+            status='active',
+        )
+
+        ClassworkRecord.objects.bulk_create([
+            ClassworkRecord(
+                school=school,
+                student=student,
+                classwork=classwork,
+                status='not_done',
+            )
+            for student in students
+        ])
+
+    return classwork
+
+
+def mark_classwork_records(school, classwork, record_data, marked_by):
+    """
+    Bulk mark. Each item may carry status, score, or both:
+        {'record_id': int, 'status': str, 'score': float, 'remarks': str}
+
+    Score is only accepted on graded classwork. CA scores are recomputed
+    once at the end, and only when the work feeds a component type.
+    """
+    from apps.academics.models import ClassworkRecord
+    from django.utils import timezone
+
+    results = []
+    errors = []
+    touched_students = []
+
+    valid_statuses = {c[0] for c in ClassworkRecord.STATUS_CHOICES}
+
+    with transaction.atomic():
+        for item in record_data:
+            record_id = item.get('record_id')
+
+            try:
+                record = ClassworkRecord.objects.select_related('student').get(
+                    id=record_id, classwork=classwork, school=school
+                )
+            except ClassworkRecord.DoesNotExist:
+                errors.append(f"Record {record_id} not found.")
+                continue
+
+            if record.locked:
+                errors.append(f"Record for {record.student} is locked.")
+                continue
+
+            if 'status' in item:
+                new_status = item['status']
+                if new_status not in valid_statuses:
+                    errors.append(f"'{new_status}' is not a valid status.")
+                    continue
+                record.status = new_status
+
+            if 'score' in item:
+                if not classwork.is_graded:
+                    errors.append(f"{classwork.name} is ungraded — scores cannot be entered.")
+                    continue
+
+                raw = item['score']
+                if raw in (None, ''):
+                    record.score = None
+                else:
+                    score = Decimal(str(raw))
+                    if score < 0:
+                        errors.append(f"Score cannot be negative for {record.student}.")
+                        continue
+                    if classwork.max_score is not None and score > classwork.max_score:
+                        errors.append(
+                            f"Score {score} exceeds the maximum of {classwork.max_score} for {record.student}."
+                        )
+                        continue
+                    record.score = score
+                    if record.status == 'not_done':
+                        record.status = 'graded'
+
+            if 'remarks' in item:
+                record.remarks = item['remarks']
+
+            record.marked_by = marked_by
+            record.marked_at = timezone.now()
+            record.save()
+
+            results.append(record)
+            touched_students.append(record.student)
+
+    if classwork.is_graded:
+        for student in touched_students:
+            update_ca_score(
+                school=school,
+                student=student,
+                subject=classwork.subject,
+                term=classwork.term,
+                classroom=classwork.classroom,
+                branch=classwork.branch,
+            )
+
+    return results, errors

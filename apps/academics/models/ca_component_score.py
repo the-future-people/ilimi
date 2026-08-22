@@ -31,6 +31,13 @@ class ClassworkRecord(models.Model):
 
     submitted_file = models.FileField(upload_to='classwork_submissions/', null=True, blank=True)
     submitted_at   = models.DateTimeField(null=True, blank=True)
+    submitted_by   = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='classwork_submissions',
+        help_text='Who uploaded — the parent today, the student once they have logins.',
+    )
 
     marked_by   = models.ForeignKey(
         'tenants.SchoolMember',

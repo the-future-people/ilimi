@@ -268,6 +268,12 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                     status='active',
                 ).count()
 
+                preview = Student.objects.filter(
+                    current_class=a.classroom,
+                    school=member.school,
+                    status='active',
+                ).order_by('last_name', 'first_name')[:3]
+
                 classroom_map[cid] = {
                     'id': a.classroom.id,
                     'full_name': a.classroom.full_name,
@@ -277,6 +283,9 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                     'is_form_teacher': a.classroom.form_teacher_id == member.id,
                     'attendance_due': False,
                     'unmarked_count': 0,
+                    'student_preview': [
+                        {'id': s.id, 'name': s.full_name} for s in preview
+                    ],
                     'subjects': [],
                 }
 

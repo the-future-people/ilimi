@@ -415,7 +415,7 @@ def teacher_ca_scores(request, classroom_id, subject_id):
     except Exception:
         pass
 
-    from apps.academics.models import CAComponent, CAComponentType, CAScore
+    from apps.academics.models import Classwork, CAComponentType, CAScore
     from apps.academics.services.ca_service import get_default_component_types
 
     classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
@@ -436,7 +436,7 @@ def teacher_ca_scores(request, classroom_id, subject_id):
     ).order_by('last_name', 'first_name')
 
     # Components for this subject/term
-    components = CAComponent.objects.filter(
+    components = Classwork.objects.filter(
         school=membership.school,
         classroom=classroom,
         subject=subject,
@@ -449,14 +449,14 @@ def teacher_ca_scores(request, classroom_id, subject_id):
     # CA Scores
     ca_scores = {}
     if current_term:
-        from apps.academics.models import CAComponentScore
+        from apps.academics.models import ClassworkRecord
         for student in students:
-            scores_qs = CAComponentScore.objects.filter(
+            scores_qs = ClassworkRecord.objects.filter(
                 student=student,
-                component__in=components,
+                classwork__in=components,
                 school=membership.school,
-            ).select_related('component')
-            scores_map = {s.component_id: s for s in scores_qs}
+            ).select_related('classwork')
+            scores_map = {s.classwork_id: s for s in scores_qs}
 
             ca_score_obj = CAScore.objects.filter(
                 student=student,
@@ -564,13 +564,13 @@ def teacher_ca_scores_save(request, classroom_id, subject_id, component_id):
     if not membership or membership.role != 'teacher':
         return JsonResponse({'success': False, 'message': 'Unauthorised.'}, status=403)
 
-    from apps.academics.models import CAComponent
-    from apps.academics.services.ca_service import save_component_scores, update_ca_score
+    from apps.academics.models import Classwork
+    from apps.academics.services.ca_service import save_classwork_scores, update_ca_score
     import json
 
     classroom = get_object_or_404(ClassRoom, id=classroom_id, school=membership.school)
     subject   = get_object_or_404(Subject, id=subject_id, school=membership.school)
-    component = get_object_or_404(CAComponent, id=component_id, school=membership.school)
+    component = get_object_or_404(Classwork, id=component_id, school=membership.school)
 
     current_term = Term.objects.filter(
         academic_year=classroom.academic_year,
@@ -584,11 +584,11 @@ def teacher_ca_scores_save(request, classroom_id, subject_id, component_id):
         data       = json.loads(request.body)
         score_data = data.get('scores', [])
 
-        results, errors = save_component_scores(
+        results, errors = save_classwork_scores(
             school=membership.school,
-            component=component,
+            classwork=component,
             score_data=score_data,
-            entered_by=membership,
+            marked_by=membership,
         )
 
         # Recompute class scores for affected students

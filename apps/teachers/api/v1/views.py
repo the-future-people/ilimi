@@ -271,9 +271,10 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
                     'subjects': [],
                 }
 
-            classroom_map[cid]['subjects'].append({
+                classroom_map[cid]['subjects'].append({
                 'id': a.subject.id,
                 'name': a.subject.name,
+                'subject_assignment_id': a.id,
             })
 
         classrooms = list(classroom_map.values())

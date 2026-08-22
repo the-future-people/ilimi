@@ -36,11 +36,11 @@ def create_default_component_types(school):
     return created
 
 
-def create_ca_component(school, classroom, subject, term, component_type, name, max_score, date, created_by, branch=None):
-    """Creates a new CA component (e.g. Class Test 1)."""
-    from apps.academics.models import CAComponent
+def create_classwork(school, classroom, subject, term, component_type, name, max_score, date, created_by, branch=None):
+    """Creates a new piece of classwork (e.g. Class Test 1)."""
+    from apps.academics.models import Classwork
 
-    component = CAComponent.objects.create(
+    classwork = Classwork.objects.create(
         school=school,
         branch=branch,
         classroom=classroom,
@@ -52,17 +52,16 @@ def create_ca_component(school, classroom, subject, term, component_type, name, 
         date=date,
         created_by=created_by,
     )
-    return component
+    return classwork
 
 
-def save_component_scores(school, component, score_data, entered_by):
+def save_classwork_scores(school, classwork, score_data, marked_by):
     """
-    Save scores for multiple students on a component.
+    Save scores for multiple students on a piece of classwork.
     score_data: list of {'student_id': int, 'score': float, 'remarks': str}
-    Returns list of CAComponentScore objects.
+    Returns list of ClassworkRecord objects.
     """
-    from apps.academics.models import CAComponentScore
-    from apps.students.models import Student
+    from apps.academics.models import ClassworkRecord
 
     results = []
     errors = []
@@ -73,22 +72,22 @@ def save_component_scores(school, component, score_data, entered_by):
             score = Decimal(str(item.get('score', 0)))
             remarks = item.get('remarks', '')
 
-            if score > component.max_score:
-                errors.append(f"Score {score} exceeds max score {component.max_score} for student {student_id}.")
+            if classwork.max_score is not None and score > classwork.max_score:
+                errors.append(f"Score {score} exceeds max score {classwork.max_score} for student {student_id}.")
                 continue
 
             if score < 0:
                 errors.append(f"Score cannot be negative for student {student_id}.")
                 continue
 
-            obj, created = CAComponentScore.objects.get_or_create(
+            obj, created = ClassworkRecord.objects.get_or_create(
                 student_id=student_id,
-                component=component,
+                classwork=classwork,
                 defaults={
                     'school': school,
                     'score': score,
                     'remarks': remarks,
-                    'entered_by': entered_by,
+                    'marked_by': marked_by,
                 }
             )
 
@@ -98,7 +97,7 @@ def save_component_scores(school, component, score_data, entered_by):
                     continue
                 obj.score = score
                 obj.remarks = remarks
-                obj.entered_by = entered_by
+                obj.marked_by = marked_by
                 obj.save()
 
             results.append(obj)
@@ -108,49 +107,50 @@ def save_component_scores(school, component, score_data, entered_by):
 
 def compute_class_score(school, student, subject, term, classroom=None):
     """
-    Computes a student's class score (out of 30) from all component scores.
+    Computes a student's class score (out of 30) from all graded classwork.
     Formula per component type:
         average_pct = mean(scores) / max_score * 100
         contribution = average_pct * (type_weight / 100) * 30 / 100
     Sums contributions across all types.
+
+    Classwork with no component_type is ungraded and never counted.
     """
-    from apps.academics.models import CAComponent, CAComponentScore, CAComponentType
+    from apps.academics.models import Classwork, ClassworkRecord, CAComponentType
 
     component_types = CAComponentType.objects.filter(school=school, is_active=True)
     total_class_score = Decimal('0.00')
 
     for comp_type in component_types:
-        # Get all components of this type for this subject/term
-        component_filters = {
+        classwork_filters = {
             'school': school,
             'subject': subject,
             'term': term,
             'component_type': comp_type,
         }
         if classroom is not None:
-            component_filters['classroom'] = classroom
+            classwork_filters['classroom'] = classroom
 
-        components = CAComponent.objects.filter(**component_filters)
+        classwork_items = Classwork.objects.filter(**classwork_filters)
 
-        if not components.exists():
+        if not classwork_items.exists():
             continue
 
-        # Get student scores for these components
-        scores = CAComponentScore.objects.filter(
+        records = ClassworkRecord.objects.filter(
             student=student,
-            component__in=components,
+            classwork__in=classwork_items,
             school=school,
-        )
+            score__isnull=False,
+        ).select_related('classwork')
 
-        if not scores.exists():
+        if not records.exists():
             continue
 
-        # Compute average percentage across all components of this type
         total_pct = Decimal('0.00')
         count = 0
-        for score_obj in scores:
-            if score_obj.component.max_score > 0:
-                pct = (score_obj.score / score_obj.component.max_score) * Decimal('100')
+        for record in records:
+            max_score = record.classwork.max_score
+            if max_score and max_score > 0:
+                pct = (record.score / max_score) * Decimal('100')
                 total_pct += pct
                 count += 1
 
@@ -159,19 +159,16 @@ def compute_class_score(school, student, subject, term, classroom=None):
 
         avg_pct = total_pct / count
 
-        # Scale to contribution out of 30
-        # contribution = avg_pct * (type_weight / 100) * 30 / 100
         contribution = avg_pct * (comp_type.weight / Decimal('100')) * Decimal('30') / Decimal('100')
         total_class_score += contribution
 
-    # Cap at 30
     return min(total_class_score, Decimal('30.00'))
 
 
 def update_ca_score(school, student, subject, term, classroom, branch=None):
     """
     Recomputes and saves the CAScore for a student/subject/term
-    after component scores are entered.
+    after classwork scores are entered.
     """
     from apps.academics.models import CAScore
 
@@ -260,3 +257,8 @@ def submit_ca_scores(school, classroom, subject, term, submitted_by, branch=None
         )
 
     return scores
+
+
+# Backward-compatible aliases — remove once views are updated.
+create_ca_component = create_classwork
+save_component_scores = save_classwork_scores

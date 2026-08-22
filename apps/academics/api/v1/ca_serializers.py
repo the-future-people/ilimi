@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.academics.models import (
-    CAComponentType, CAComponent, CAComponentScore, CAScore
+    CAComponentType, Classwork, ClassworkRecord, CAScore
 )
 
 
@@ -10,31 +10,32 @@ class CAComponentTypeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'weight', 'is_active', 'is_default', 'order']
 
 
-class CAComponentSerializer(serializers.ModelSerializer):
+class ClassworkSerializer(serializers.ModelSerializer):
     component_type_name = serializers.CharField(source='component_type.name', read_only=True)
 
     class Meta:
-        model = CAComponent
+        model = Classwork
         fields = [
             'id', 'classroom', 'subject', 'term', 'component_type',
             'component_type_name', 'name', 'max_score', 'date',
         ]
 
 
-class CAComponentCreateSerializer(serializers.ModelSerializer):
+class ClassworkCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CAComponent
+        model = Classwork
         fields = [
             'classroom', 'subject', 'term', 'component_type',
             'name', 'max_score', 'date',
         ]
 
 
-class CAComponentScoreSerializer(serializers.ModelSerializer):
+class ClassworkRecordSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.full_name', read_only=True)
+    component = serializers.PrimaryKeyRelatedField(source='classwork', read_only=True)
 
     class Meta:
-        model = CAComponentScore
+        model = ClassworkRecord
         fields = ['id', 'student', 'student_name', 'component', 'score', 'remarks', 'locked']
 
 
@@ -48,3 +49,9 @@ class CAScoreSerializer(serializers.ModelSerializer):
             'class_score', 'exam_score', 'total', 'grade',
             'submitted', 'locked',
         ]
+
+
+# Backward-compatible aliases — remove once views are updated.
+CAComponentSerializer = ClassworkSerializer
+CAComponentCreateSerializer = ClassworkCreateSerializer
+CAComponentScoreSerializer = ClassworkRecordSerializer

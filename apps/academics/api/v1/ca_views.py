@@ -5,10 +5,11 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from drf_spectacular.utils import extend_schema
 
+from apps.academics.services.ca_service import save_classwork_scores
 from apps.core.renderers import IlimiAPIRenderer
 from apps.tenants.models import SchoolMember
 from apps.academics.models import (
-    CAComponentType, CAComponent, CAComponentScore, CAScore,
+    CAComponentType, Classwork, CAScore,
     ClassRoom, Subject, Term,
 )
 from apps.students.models import Student
@@ -68,7 +69,7 @@ class CAComponentListCreateView(SchoolScopedMixin, GenericAPIView):
         subject_id = request.query_params.get('subject')
         term_id = request.query_params.get('term')
 
-        qs = CAComponent.objects.filter(school=school).select_related('component_type')
+        qs = Classwork.objects.filter(school=school).select_related('component_type')
 
         if classroom_id:
             qs = qs.filter(classroom_id=classroom_id)
@@ -110,17 +111,17 @@ class CAComponentScoreBulkSaveView(SchoolScopedMixin, GenericAPIView):
         school = member.school
 
         try:
-            component = CAComponent.objects.get(id=component_id, school=school)
-        except CAComponent.DoesNotExist:
+            component = Classwork.objects.get(id=component_id, school=school)
+        except Classwork.DoesNotExist:
             raise NotFound("Component not found.")
 
         score_data = request.data.get('scores', [])
 
-        results, errors = save_component_scores(
+        results, errors = save_classwork_scores(
             school=school,
-            component=component,
+            classwork=component,
             score_data=score_data,
-            entered_by=member,
+            marked_by=member,
         )
 
         updated_scores = {}

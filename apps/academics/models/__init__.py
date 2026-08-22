@@ -5,8 +5,8 @@ from .classroom import ClassRoom
 from .subject import Subject
 from .subject_assignment import SubjectAssignment
 from .ca_component_type import CAComponentType
-from .ca_component import CAComponent
-from .ca_component_score import CAComponentScore
+from .ca_component import Classwork
+from .ca_component_score import ClassworkRecord
 from .ca_score import CAScore
 from .ges_calendar import GESCalendarTemplate, GESCalendarTermTemplate
 
@@ -18,8 +18,8 @@ __all__ = [
     'Subject',
     'SubjectAssignment',
     'CAComponentType',
-    'CAComponent',
-    'CAComponentScore',
+    'Classwork',
+    'ClassworkRecord',
     'CAScore',
     'GESCalendarTemplate',
     'GESCalendarTermTemplate',

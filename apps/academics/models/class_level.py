@@ -31,6 +31,11 @@ class ClassLevel(models.Model):
         for index, choice in enumerate(LEVEL_CHOICES)
     }
 
+    # Nursery through Primary 4: one teacher owns the class and teaches every
+    # subject. From Primary 5 upward: subject specialists teach across classes,
+    # and each class has a permanent class master who also teaches it.
+    LOWER_BAND_MAX_ORDER = LEVEL_ORDER['primary_4']
+
     school = models.ForeignKey(
         School, on_delete=models.CASCADE, related_name='class_levels'
     )
@@ -58,3 +63,10 @@ class ClassLevel(models.Model):
     @property
     def display_name(self):
         return self.custom_name or self.get_name_display()
+
+    @property
+    def band(self):
+        """'lower' = single class teacher; 'upper' = subject specialists."""
+        if self.order > self.LEVEL_ORDER['jhs_3']:
+            return 'upper'
+        return 'lower' if self.order <= self.LOWER_BAND_MAX_ORDER else 'upper'

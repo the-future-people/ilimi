@@ -246,6 +246,76 @@ class ClassRoomDetailView(SchoolScopedMixin, GenericAPIView):
             **ClassRoomSerializer(classroom).data,
         })
 
+@extend_schema(tags=["Classrooms"])
+class ClassTeacherView(SchoolScopedMixin, GenericAPIView):
+    """
+    Lower-band classes (Nursery to Primary 3) have one teacher for every
+    subject. Sets that teacher across all core subjects and makes them
+    form master, in one action.
+
+    POST { "teacher": <school_member_id>, "term": <term_id> }
+    """
+
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, pk, *args, **kwargs):
+        from apps.academics.models import Term
+        from apps.academics.services.assignment_service import set_class_teacher
+        from apps.tenants.models import SchoolMember
+
+        school = self.get_school()
+
+        try:
+            classroom = ClassRoom.objects.select_related(
+                'class_level', 'academic_year'
+            ).get(school=school, pk=pk)
+        except ClassRoom.DoesNotExist:
+            raise NotFound("Classroom not found.")
+
+        if classroom.class_level.band != 'lower':
+            return Response({
+                'message': (
+                    f'{classroom.full_name} uses subject teachers. '
+                    f'Assign each subject individually.'
+                )
+            }, status=400)
+
+        teacher_id = request.data.get('teacher')
+        term_id = request.data.get('term')
+
+        try:
+            term = Term.objects.get(id=term_id, academic_year=classroom.academic_year)
+        except Term.DoesNotExist:
+            return Response({'message': 'Invalid term.'}, status=400)
+
+        teacher = None
+        if teacher_id:
+            try:
+                teacher = SchoolMember.objects.get(
+                    id=teacher_id, school=school, is_active=True
+                )
+            except SchoolMember.DoesNotExist:
+                return Response({'message': 'Teacher not found.'}, status=400)
+
+        created, reassigned = set_class_teacher(
+            school=school,
+            classroom=classroom,
+            teacher=teacher,
+            term=term,
+        )
+
+        name = teacher.user.full_name if teacher else None
+        return Response({
+            'message': (
+                f'{name} now takes every subject in {classroom.full_name}.'
+                if name else f'Class teacher cleared for {classroom.full_name}.'
+            ),
+            'created': created,
+            'reassigned': reassigned,
+            'classroom': ClassRoomSerializer(classroom).data,
+        })
+
 
 # ── Subjects ──────────────────────────────────────────────────────────────
 
@@ -257,7 +327,9 @@ class SubjectListCreateView(SchoolScopedMixin, GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         school = self.get_school()
-        subjects = Subject.objects.filter(school=school, is_active=True)
+        subjects = Subject.objects.filter(
+        school=school, is_active=True, subject_type='core'
+    )
         serializer = SubjectSerializer(subjects, many=True)
         return Response({'subjects': serializer.data, 'count': subjects.count()})
 

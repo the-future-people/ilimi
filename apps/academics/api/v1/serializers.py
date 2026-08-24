@@ -111,12 +111,17 @@ class ClassRoomCreateSerializer(serializers.ModelSerializer):
         choices=ClassLevel.LEVEL_CHOICES, required=False, write_only=True
     )
 
+    reassign = serializers.BooleanField(
+        required=False, write_only=True, default=False,
+        help_text='Confirms moving a form master away from their current class.',
+    )
+
     class Meta:
         model = ClassRoom
         fields = [
             'class_level', 'class_level_name', 'section_name',
             'elective_group', 'form_teacher', 'branch',
-            'capacity', 'is_active',
+            'capacity', 'is_active', 'reassign',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -169,6 +174,35 @@ class ClassRoomCreateSerializer(serializers.ModelSerializer):
                 f"A classroom '{class_level.display_name} {section_name}' "
                 f"already exists for this academic year."
             )
+
+        # One class, one form master — and one form master, one class.
+        form_teacher = attrs.get('form_teacher')
+        reassign = attrs.pop('reassign', False)
+
+        if form_teacher is not None:
+            held = ClassRoom.objects.filter(
+                school=school,
+                academic_year=academic_year,
+                form_teacher=form_teacher,
+                is_active=True,
+            )
+            if self.instance:
+                held = held.exclude(pk=self.instance.pk)
+
+            other = held.first()
+            if other is not None:
+                if not reassign:
+                    raise serializers.ValidationError({
+                        'form_teacher': (
+                            f'{form_teacher.user.full_name} is already the form master '
+                            f'of {other.full_name}.'
+                        ),
+                        'conflict_classroom': other.full_name,
+                        'conflict_classroom_id': other.id,
+                        'requires_confirmation': True,
+                    })
+                held.update(form_teacher=None)
+
         return attrs
 
 

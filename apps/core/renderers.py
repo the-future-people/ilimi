@@ -26,7 +26,9 @@ class IlimiAPIRenderer(JSONRenderer):
         elif is_error:
             envelope = {
                 'status': 'error',
-                'message': data.get('detail', 'An error occurred') if isinstance(data, dict) else 'An error occurred',
+                'message': (
+                    data.get('detail') or data.get('message') or 'An error occurred'
+                ) if isinstance(data, dict) else 'An error occurred',
                 'data': None,
                 'errors': data if isinstance(data, dict) else None,
             }

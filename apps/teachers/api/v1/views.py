@@ -251,6 +251,47 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
         member = self.get_member()
         today = timezone.localdate()
 
+        from apps.academics.models import ClassRoom
+
+        def build_entry(classroom):
+            student_count = Student.objects.filter(
+                current_class=classroom,
+                school=member.school,
+                status='active',
+            ).count()
+
+            preview = Student.objects.filter(
+                current_class=classroom,
+                school=member.school,
+                status='active',
+            ).order_by('last_name', 'first_name')[:3]
+
+            return {
+                'id': classroom.id,
+                'full_name': classroom.full_name,
+                'class_level': classroom.class_level.display_name,
+                'academic_year': classroom.academic_year.name,
+                'student_count': student_count,
+                'is_form_teacher': classroom.form_teacher_id == member.id,
+                'attendance_due': False,
+                'unmarked_count': 0,
+                'student_preview': [
+                    {'id': s.id, 'name': s.full_name} for s in preview
+                ],
+                'subjects': [],
+            }
+
+        classroom_map = {}
+
+        # Form classes first — a form master owns the class whether or not
+        # a subject has been assigned to them in it yet.
+        form_classes = ClassRoom.objects.filter(
+            form_teacher=member, is_active=True
+        ).select_related('class_level', 'academic_year')
+
+        for classroom in form_classes:
+            classroom_map[classroom.id] = build_entry(classroom)
+
         assignments = SubjectAssignment.objects.filter(
             teacher=member
         ).select_related(
@@ -258,36 +299,10 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
             'classroom__academic_year', 'subject', 'term'
         )
 
-        classroom_map = {}
         for a in assignments:
             cid = a.classroom.id
             if cid not in classroom_map:
-                student_count = Student.objects.filter(
-                    current_class=a.classroom,
-                    school=member.school,
-                    status='active',
-                ).count()
-
-                preview = Student.objects.filter(
-                    current_class=a.classroom,
-                    school=member.school,
-                    status='active',
-                ).order_by('last_name', 'first_name')[:3]
-
-                classroom_map[cid] = {
-                    'id': a.classroom.id,
-                    'full_name': a.classroom.full_name,
-                    'class_level': a.classroom.class_level.display_name,
-                    'academic_year': a.classroom.academic_year.name,
-                    'student_count': student_count,
-                    'is_form_teacher': a.classroom.form_teacher_id == member.id,
-                    'attendance_due': False,
-                    'unmarked_count': 0,
-                    'student_preview': [
-                        {'id': s.id, 'name': s.full_name} for s in preview
-                    ],
-                    'subjects': [],
-                }
+                classroom_map[cid] = build_entry(a.classroom)
 
             classroom_map[cid]['subjects'].append({
                 'id': a.subject.id,

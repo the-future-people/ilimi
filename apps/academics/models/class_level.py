@@ -31,10 +31,11 @@ class ClassLevel(models.Model):
         for index, choice in enumerate(LEVEL_CHOICES)
     }
 
-    # Nursery through Primary 4: one teacher owns the class and teaches every
-    # subject. From Primary 5 upward: subject specialists teach across classes,
-    # and each class has a permanent class master who also teaches it.
-    LOWER_BAND_MAX_ORDER = LEVEL_ORDER['primary_4']
+    # Nursery through Primary 3: one teacher owns the class and teaches every
+    # subject. From Primary 4 upward: subject specialists teach across classes,
+    # and each class has a permanent form master who also teaches it.
+    # Confirmed with practising Ghanaian teachers, August 2026.
+    LOWER_BAND_MAX_ORDER = LEVEL_ORDER['primary_3']
 
     school = models.ForeignKey(
         School, on_delete=models.CASCADE, related_name='class_levels'

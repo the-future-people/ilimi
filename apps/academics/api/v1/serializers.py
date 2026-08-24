@@ -78,6 +78,7 @@ class ClassRoomSerializer(serializers.ModelSerializer):
     )
     form_teacher_name = serializers.SerializerMethodField()
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    band = serializers.CharField(source='class_level.band', read_only=True)
 
     class Meta:
         model = ClassRoom
@@ -85,7 +86,7 @@ class ClassRoomSerializer(serializers.ModelSerializer):
             'id', 'full_name', 'class_level', 'class_level_display',
             'section_name', 'elective_group', 'form_teacher',
             'form_teacher_name', 'branch', 'branch_name',
-            'capacity', 'is_active',
+            'capacity', 'is_active', 'band',
         ]
 
     def get_form_teacher_name(self, obj):

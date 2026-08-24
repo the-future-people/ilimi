@@ -347,3 +347,94 @@ class MyClassroomsView(SchoolScopedMixin, GenericAPIView):
             'classrooms': classrooms,
             'count': len(classrooms),
         })
+
+@extend_schema(tags=["Staff"])
+class ClassroomOverviewView(SchoolScopedMixin, GenericAPIView):
+    """
+    Class-scoped summary for the teacher's Overview tab: who is away today,
+    and who is repeatedly not doing their work.
+    """
+
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def get(self, request, classroom_id, *args, **kwargs):
+        from django.utils import timezone
+        from django.db.models import Count, Q
+        from apps.academics.models import ClassRoom, Classwork, ClassworkRecord
+        from apps.attendance.models import AttendanceRegister
+
+        member = self.get_member()
+        today = timezone.localdate()
+
+        try:
+            classroom = ClassRoom.objects.get(id=classroom_id, school=member.school)
+        except ClassRoom.DoesNotExist:
+            raise NotFound("Classroom not found.")
+
+        register = AttendanceRegister.objects.filter(
+            classroom=classroom, date=today, submitted=True
+        ).first()
+
+        away = []
+        if register:
+            from apps.attendance.models import StudentAttendance
+            rows = StudentAttendance.objects.filter(
+                register=register
+            ).exclude(status='present').select_related('student')
+            away = [
+                {
+                    'id': r.student.id,
+                    'name': r.student.full_name,
+                    'status': r.status,
+                    'status_display': r.get_status_display(),
+                }
+                for r in rows
+            ]
+
+        # Missing work — only counts tasks that have actually been marked,
+        # so unmarked work doesn't make the whole class look delinquent.
+        recent = list(
+            Classwork.objects.filter(
+                classroom=classroom, school=member.school
+            ).order_by('-date')[:5]
+        )
+        counts = {
+            r['classwork_id']: r
+            for r in ClassworkRecord.objects.filter(classwork__in=recent)
+            .values('classwork_id')
+            .annotate(
+                total=Count('id'),
+                not_done=Count('id', filter=Q(status='not_done')),
+            )
+        }
+        marked = [cw for cw in recent if counts.get(cw.id, {}).get('not_done') != counts.get(cw.id, {}).get('total')]
+
+        missing = []
+        if len(marked) >= 2:
+            rows = (
+                ClassworkRecord.objects.filter(
+                    classwork__in=marked, status='not_done'
+                )
+                .values('student_id', 'student__first_name', 'student__last_name')
+                .annotate(n=Count('id'))
+                .filter(n__gte=2)
+                .order_by('-n')[:5]
+            )
+            missing = [
+                {
+                    'id': r['student_id'],
+                    'name': f"{r['student__first_name']} {r['student__last_name']}",
+                    'missed': r['n'],
+                    'of': len(marked),
+                }
+                for r in rows
+            ]
+
+        return Response({
+            'register_taken': register is not None,
+            'away': away,
+            'away_count': len(away),
+            'missing_work': missing,
+            'tasks_considered': len(marked),
+        })

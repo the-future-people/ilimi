@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    ClassroomOverviewView,
     StaffProfileListCreateView,
     StaffProfileDetailView,
     MyClassroomsView,
@@ -11,4 +12,5 @@ urlpatterns = [
     path('classrooms/<int:classroom_id>/current-term/', ClassroomCurrentTermView.as_view(), name='classroom-current-term'),
     path('', StaffProfileListCreateView.as_view(), name='staff-list-create'),
     path('<int:pk>/', StaffProfileDetailView.as_view(), name='staff-detail'),
+    path('classrooms/<int:classroom_id>/overview/', ClassroomOverviewView.as_view(), name='classroom-overview'),
 ]

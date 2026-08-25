@@ -23,6 +23,8 @@ class StaffProfileSerializer(serializers.ModelSerializer):
     """Full read serializer."""
     full_name = serializers.SerializerMethodField()
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    portal_access = serializers.SerializerMethodField()
+    school_member_id = serializers.SerializerMethodField()
     leave_days_remaining = serializers.IntegerField(read_only=True)
     subject_specializations_display = serializers.SerializerMethodField()
     position_name = serializers.CharField(source='position.name', read_only=True)
@@ -53,7 +55,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             'next_of_kin_name', 'next_of_kin_relationship',
             'next_of_kin_phone', 'next_of_kin_address',
             'emergency_contacts',
-            'branch', 'branch_name',
+            'branch', 'branch_name', 'portal_access', 'school_member_id',
         ]
 
     def get_full_name(self, obj):
@@ -64,6 +66,48 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             {'id': s.id, 'name': s.name}
             for s in obj.subject_specializations.all()
         ]
+
+    def get_school_member_id(self, obj):
+        from apps.tenants.models import SchoolMember
+        if not obj.user_id:
+            return None
+        member = SchoolMember.objects.filter(
+            user=obj.user, school=obj.school, is_active=True
+        ).first()
+        return member.id if member else None
+
+    def get_portal_access(self, obj):
+        """
+        Where this person stands with portal access:
+        none, invited, expired or active.
+        """
+        from apps.accounts.models import StaffPortalInvite
+        from apps.tenants.models import SchoolMember
+
+        member = None
+        if obj.user_id:
+            member = SchoolMember.objects.filter(
+                user=obj.user, school=obj.school, is_active=True
+            ).first()
+
+        if member and obj.user and obj.user.has_usable_password():
+            return {
+                'status': 'active',
+                'email': obj.user.email,
+                'role': member.role,
+                'role_display': member.get_role_display(),
+            }
+
+        invite = StaffPortalInvite.objects.filter(staff=obj).first()
+        if invite and invite.status == 'pending':
+            return {
+                'status': 'expired' if invite.is_expired else 'invited',
+                'role': invite.role,
+                'expires_at': invite.expires_at,
+                'invited_at': invite.created_at,
+            }
+
+        return {'status': 'none'}
 
 
 class StaffProfileListSerializer(serializers.ModelSerializer):

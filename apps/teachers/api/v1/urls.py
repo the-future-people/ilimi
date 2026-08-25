@@ -4,11 +4,13 @@ from .views import (
     StaffProfileListCreateView,
     StaffProfileDetailView,
     MyClassroomsView,
+    MyStaffProfileView,
     ClassroomCurrentTermView,
 )
 
 urlpatterns = [
     path('my-classrooms/', MyClassroomsView.as_view(), name='my-classrooms'),
+    path('me/', MyStaffProfileView.as_view(), name='my-staff-profile'),
     path('classrooms/<int:classroom_id>/current-term/', ClassroomCurrentTermView.as_view(), name='classroom-current-term'),
     path('', StaffProfileListCreateView.as_view(), name='staff-list-create'),
     path('<int:pk>/', StaffProfileDetailView.as_view(), name='staff-detail'),

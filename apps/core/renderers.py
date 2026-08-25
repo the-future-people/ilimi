@@ -40,4 +40,6 @@ class IlimiAPIRenderer(JSONRenderer):
                 'errors': None,
             }
 
-        return json.dumps(envelope, ensure_ascii=False, indent=None).encode(self.charset)
+        return json.dumps(
+            envelope, ensure_ascii=False, indent=None, default=str
+        ).encode(self.charset)

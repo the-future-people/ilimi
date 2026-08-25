@@ -103,8 +103,8 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             return {
                 'status': 'expired' if invite.is_expired else 'invited',
                 'role': invite.role,
-                'expires_at': invite.expires_at,
-                'invited_at': invite.created_at,
+                'expires_at': invite.expires_at.isoformat(),
+                'invited_at': invite.created_at.isoformat(),
             }
 
         return {'status': 'none'}

@@ -11,6 +11,7 @@ from .classwork_submission import ClassworkSubmission
 from .resource import Resource
 from .ca_score import CAScore
 from .ges_calendar import GESCalendarTemplate, GESCalendarTermTemplate
+from .lesson_plan import LessonPlan, LessonPlanDay
 
 __all__ = [
     'AcademicYear',
@@ -27,4 +28,5 @@ __all__ = [
     'CAScore',
     'GESCalendarTemplate',
     'GESCalendarTermTemplate',
+    'lesson_plan',
 ]

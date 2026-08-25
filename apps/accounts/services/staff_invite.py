@@ -11,29 +11,34 @@ logger = logging.getLogger(__name__)
 
 
 def _build_invite_url(request, token):
-    """Build the full invite URL."""
-    scheme = 'https' if request.is_secure() else 'http'
-    host = request.get_host()
-    return f"{scheme}://{host}/accounts/staff/setup/{token}/"
+    """
+    Points at the React app, not the API — this is the page the staff
+    member opens in a browser to set their password.
+    """
+    base = getattr(settings, 'FRONTEND_URL', '').rstrip('/')
+    if not base:
+        scheme = 'https' if request.is_secure() else 'http'
+        base = f"{scheme}://{request.get_host()}"
+    return f"{base}/staff/setup/{token}"
 
 
 @transaction.atomic
-def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request) -> tuple:
+def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request, role: str = 'teacher') -> tuple:
     """
     Send a portal access invite to a staff member.
     - Creates a User account if one doesn't exist
     - Creates or refreshes a StaffPortalInvite
     - Sends SMS with the setup link
-    Returns (success: bool, message: str)
+    Returns (success: bool, message: str, invite_url: str|None)
     """
 
     # ── Check staff has a phone number ────────────────────────────────────────
     if not staff.phone:
-        return False, "This staff member has no phone number on record."
+        return False, "This staff member has no phone number on record.", None
 
     # ── Check if already has active portal access ──────────────────────────────
     if staff.user and staff.user.is_active and staff.user.is_phone_verified:
-        return False, f"{staff.full_name} already has active portal access."
+            return False, f"{staff.full_name} already has active portal access.", None
 
     # ── Create User account if not exists ─────────────────────────────────────
     if not staff.user:
@@ -65,6 +70,7 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request) -> 
     invite = StaffPortalInvite.objects.create(
         staff=staff,
         invited_by=invited_by,
+        role=role,
     )
 
     # ── Build SMS message ──────────────────────────────────────────────────────
@@ -84,9 +90,9 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request) -> 
     except Exception as e:
         logger.error(f"SMS failed for staff invite {staff.staff_id}: {str(e)}")
         # Don't fail the whole operation — invite still created
-        return True, f"Invite created but SMS delivery failed. Share this link manually: {invite_url}"
+        return True, f"Invite created. SMS did not send — share this link instead.", invite_url
 
-    return True, f"Portal access invite sent to {staff.first_name} via SMS ({staff.phone})."
+    return True, f"Portal access invite sent to {staff.first_name} via SMS ({staff.phone}).", invite_url
 
 
 from apps.tenants.models import SchoolMember
@@ -123,7 +129,7 @@ def accept_staff_invite(token: str, password: str) -> tuple:
         user=user,
         school=invite.staff.school,
         defaults={
-            'role': 'teacher',
+            'role': invite.role or 'teacher',
             'branch': invite.staff.branch,
             'is_active': True,
         }

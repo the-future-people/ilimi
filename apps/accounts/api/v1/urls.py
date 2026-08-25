@@ -9,6 +9,7 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
 )
+from .staff_access_views import StaffInviteView, StaffInviteAcceptView
 
 app_name = "auth-v1"
 
@@ -21,4 +22,6 @@ urlpatterns = [
     path("token/refresh/", IlimiTokenRefreshView.as_view(), name="token-refresh"),
     path("password/reset/", PasswordResetRequestView.as_view(), name="password-reset"),
     path("password/reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
+    path("staff/<int:staff_pk>/invite/", StaffInviteView.as_view(), name="staff-invite"),
+    path("staff/setup/<uuid:token>/", StaffInviteAcceptView.as_view(), name="staff-setup"),
 ]

@@ -1,3 +1,5 @@
+import os
+
 import environ
 from pathlib import Path
 from datetime import timedelta
@@ -52,6 +54,7 @@ LOCAL_APPS = [
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

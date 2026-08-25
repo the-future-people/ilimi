@@ -26,6 +26,10 @@ class StaffPortalInvite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(default=invite_expiry)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    role = models.CharField(
+        max_length=20, default='teacher',
+        help_text='Role granted when the invite is accepted.',
+    )
     invited_by = models.ForeignKey(
         'accounts.User',
         on_delete=models.SET_NULL,

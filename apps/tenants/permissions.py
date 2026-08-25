@@ -23,6 +23,9 @@ ROLE_PERMISSIONS = {
     'branch_manager': {d: 'full' for d in DOMAINS},
     'accountant':     {'fees': 'full'},
     'registrar':      {'students': 'full', 'staff': 'full', 'documents': 'full', 'reports': 'full', 'parents': 'full', 'communications': 'request'},
+    # Academic oversight. May also carry a teaching load via SubjectAssignment
+    # — the role grants oversight, it does not replace being a facilitator.
+    'head_of_academics': {'students': 'full', 'reports': 'full'},
     # Teachers operate through the separate /teacher/* route tree and its
     # own object-level checks (their own classes only) — not modeled here.
     'teacher':        {},
@@ -84,3 +87,23 @@ def can_perform(member, action):
         # covers it, nothing further to check here.
         return True
     return bool(member.is_lead)
+
+# Roles permitted to vet lesson plans. The head of academics vets
+# facilitators; admin-tier vets the head of academics when they teach.
+# Nobody vets a plan they wrote themselves — enforced at the call site.
+VETTING_ROLES = {'head_of_academics', 'school_admin', 'branch_manager'}
+
+
+def can_vet_lesson_plans(member):
+    if member is None:
+        return False
+    return member.role in VETTING_ROLES
+
+
+def can_vet_plan(member, plan):
+    """A plan's own author can never vet it, whatever their role."""
+    if not can_vet_lesson_plans(member):
+        return False
+    if plan.facilitator_id and plan.facilitator_id == member.id:
+        return False
+    return True

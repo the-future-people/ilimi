@@ -128,6 +128,7 @@ class StaffProfileListCreateView(SchoolScopedMixin, GenericAPIView):
         data = serializer.validated_data
 
         emergency_contacts_data = data.pop('emergency_contacts', [])
+        subject_specializations = data.pop('subject_specializations', [])
         position_name = data.pop('position_name', '').strip()
 
         position = None
@@ -140,6 +141,9 @@ class StaffProfileListCreateView(SchoolScopedMixin, GenericAPIView):
             position=position,
             **data,
         )
+
+        if subject_specializations:
+            staff.subject_specializations.set(subject_specializations)
 
         for ec_data in emergency_contacts_data:
             StaffEmergencyContact.objects.create(staff=staff, **ec_data)

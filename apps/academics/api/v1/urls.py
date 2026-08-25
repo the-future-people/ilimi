@@ -3,6 +3,7 @@ from .views import (
     AcademicYearListCreateView,
     AcademicYearDetailView,
     ClassTeacherView,
+    LessonPlanListCreateView,
     TermListCreateView,
     ClassLevelListCreateView,
     ClassRoomListCreateView,
@@ -12,6 +13,10 @@ from .views import (
     SubjectAssignmentListCreateView,
     SubjectAssignmentDetailView,
     MySchoolClassroomsView,
+    LessonPlanDetailView,
+    LessonPlanSubmitView,
+    LessonPlanVetView,
+    LessonPlanDayUpdateView,
 )
 
 from .setup_views import (
@@ -73,4 +78,10 @@ urlpatterns = [
     path('classwork/<int:classwork_id>/records/', ClassworkRecordListView.as_view(), name='classwork-records'),
     path('classwork/<int:classwork_id>/mark/', ClassworkMarkView.as_view(), name='classwork-mark'),
     path('my-classrooms/', MySchoolClassroomsView.as_view(), name='my-school-classrooms'),
+
+    path('lesson-plans/', LessonPlanListCreateView.as_view(), name='lesson-plan-list'),
+    path('lesson-plans/<int:pk>/', LessonPlanDetailView.as_view(), name='lesson-plan-detail'),
+    path('lesson-plans/<int:pk>/submit/', LessonPlanSubmitView.as_view(), name='lesson-plan-submit'),
+    path('lesson-plans/<int:pk>/vet/', LessonPlanVetView.as_view(), name='lesson-plan-vet'),
+    path('lesson-plan-days/<int:pk>/', LessonPlanDayUpdateView.as_view(), name='lesson-plan-day'),
 ]

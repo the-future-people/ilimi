@@ -10,12 +10,13 @@ from apps.academics.models import (
     AcademicYear, Term, ClassLevel, ClassRoom, Subject, SubjectAssignment
 )
 from .serializers import (
-    AcademicYearSerializer, AcademicYearCreateSerializer,
+    AcademicYearSerializer, AcademicYearCreateSerializer, LessonPlanSerializer,
     TermSerializer, TermCreateSerializer,
     ClassLevelSerializer, ClassLevelCreateSerializer,
     ClassRoomSerializer, ClassRoomCreateSerializer,
     SubjectSerializer, SubjectCreateSerializer,
     SubjectAssignmentSerializer, SubjectAssignmentCreateSerializer,
+    LessonPlanListSerializer, LessonPlanDaySerializer,
 )
 
 
@@ -29,6 +30,14 @@ class SchoolScopedMixin:
         if not member:
             raise NotFound("No school found for your account.")
         return member.school
+
+    def get_member(self):
+        member = SchoolMember.objects.filter(
+            user=self.request.user, is_active=True
+        ).select_related('school', 'branch').first()
+        if not member:
+            raise NotFound("No active school found for your account.")
+        return member
 
 
 # ── Academic Years ────────────────────────────────────────────────────────
@@ -494,4 +503,218 @@ class MySchoolClassroomsView(SchoolScopedMixin, GenericAPIView):
             'count': classrooms.count(),
             'academic_year': current_year.name,
             'academic_year_id': current_year.id,
+        })
+
+@extend_schema(tags=["Lesson Plans"])
+class LessonPlanListCreateView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = LessonPlanListSerializer
+
+    def get(self, request, *args, **kwargs):
+        from apps.academics.models import LessonPlan
+
+        member = self.get_member()
+        qs = LessonPlan.objects.filter(school=member.school).select_related(
+            'subject', 'classroom', 'classroom__class_level', 'facilitator__user'
+        ).prefetch_related('days')
+
+        # Teachers see only their own; vetters see everything.
+        from apps.tenants.permissions import can_vet_lesson_plans
+        if not can_vet_lesson_plans(member):
+            qs = qs.filter(facilitator=member)
+
+        for param, field in (
+            ('classroom', 'classroom_id'),
+            ('subject', 'subject_id'),
+            ('term', 'term_id'),
+            ('status', 'status'),
+        ):
+            value = request.query_params.get(param)
+            if value:
+                qs = qs.filter(**{field: value})
+
+        serializer = LessonPlanListSerializer(qs, many=True)
+        return Response({'lesson_plans': serializer.data, 'count': qs.count()})
+
+    def post(self, request, *args, **kwargs):
+        from apps.academics.models import ClassRoom, Subject, Term
+        from apps.academics.services.lesson_plan_service import create_lesson_plan
+
+        member = self.get_member()
+        school = member.school
+        data = request.data
+
+        try:
+            classroom = ClassRoom.objects.get(id=data.get('classroom'), school=school)
+            subject = Subject.objects.get(id=data.get('subject'), school=school)
+            term = Term.objects.get(id=data.get('term'))
+        except (ClassRoom.DoesNotExist, Subject.DoesNotExist, Term.DoesNotExist):
+            return Response({'message': 'Invalid classroom, subject or term.'}, status=400)
+
+        week_ending = data.get('week_ending')
+        if not week_ending:
+            return Response({'message': 'Give the week ending date.'}, status=400)
+
+        from apps.academics.models import LessonPlan
+        if LessonPlan.objects.filter(
+            classroom=classroom, subject=subject, term=term, week_ending=week_ending
+        ).exists():
+            return Response({
+                'message': f'A plan already exists for {subject.name} in {classroom.full_name} that week.'
+            }, status=400)
+
+        plan = create_lesson_plan(
+            school=school,
+            branch=member.branch,
+            classroom=classroom,
+            subject=subject,
+            term=term,
+            week_ending=week_ending,
+            facilitator=member,
+            class_size=data.get('class_size') or None,
+            strand=data.get('strand', ''),
+            sub_strand=data.get('sub_strand', ''),
+            indicator_code=data.get('indicator_code', ''),
+            content_standard_code=data.get('content_standard_code', ''),
+            performance_indicator=data.get('performance_indicator', ''),
+            core_competencies=data.get('core_competencies', ''),
+            key_words=data.get('key_words', ''),
+            tlr=data.get('tlr', ''),
+            reference=data.get('reference', ''),
+        )
+
+        return Response({
+            'message': f'Plan started for week ending {plan.week_ending}.',
+            'lesson_plan': LessonPlanSerializer(plan).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["Lesson Plans"])
+class LessonPlanDetailView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = LessonPlanSerializer
+
+    def get_object(self, member, pk):
+        from apps.academics.models import LessonPlan
+        from apps.tenants.permissions import can_vet_lesson_plans
+
+        try:
+            plan = LessonPlan.objects.select_related(
+                'subject', 'classroom', 'facilitator__user', 'vetted_by__user'
+            ).prefetch_related('days').get(pk=pk, school=member.school)
+        except LessonPlan.DoesNotExist:
+            raise NotFound("Lesson plan not found.")
+
+        if plan.facilitator_id != member.id and not can_vet_lesson_plans(member):
+            raise NotFound("Lesson plan not found.")
+
+        return plan
+
+    def get(self, request, pk, *args, **kwargs):
+        member = self.get_member()
+        return Response(LessonPlanSerializer(self.get_object(member, pk)).data)
+
+    def patch(self, request, pk, *args, **kwargs):
+        member = self.get_member()
+        plan = self.get_object(member, pk)
+
+        if plan.facilitator_id != member.id:
+            return Response({'message': 'Only the facilitator can edit this plan.'}, status=403)
+        if not plan.is_editable:
+            return Response({
+                'message': 'This plan has been submitted and can no longer be edited.'
+            }, status=400)
+
+        serializer = LessonPlanSerializer(plan, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'message': 'Saved.', 'lesson_plan': serializer.data})
+
+
+@extend_schema(tags=["Lesson Plans"])
+class LessonPlanDayUpdateView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+    serializer_class = LessonPlanDaySerializer
+
+    def patch(self, request, pk, *args, **kwargs):
+        from apps.academics.models import LessonPlanDay
+
+        member = self.get_member()
+        try:
+            day = LessonPlanDay.objects.select_related('plan').get(
+                pk=pk, plan__school=member.school
+            )
+        except LessonPlanDay.DoesNotExist:
+            raise NotFound("Day not found.")
+
+        if day.plan.facilitator_id != member.id:
+            return Response({'message': 'Only the facilitator can edit this plan.'}, status=403)
+        if not day.plan.is_editable:
+            return Response({'message': 'This plan can no longer be edited.'}, status=400)
+
+        serializer = LessonPlanDaySerializer(day, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'message': 'Saved.', 'day': serializer.data})
+
+
+@extend_schema(tags=["Lesson Plans"])
+class LessonPlanSubmitView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, pk, *args, **kwargs):
+        from apps.academics.models import LessonPlan
+        from apps.academics.services.lesson_plan_service import submit_lesson_plan
+
+        member = self.get_member()
+        try:
+            plan = LessonPlan.objects.get(pk=pk, school=member.school)
+        except LessonPlan.DoesNotExist:
+            raise NotFound("Lesson plan not found.")
+
+        try:
+            submit_lesson_plan(plan, member)
+        except ValueError as e:
+            return Response({'message': str(e)}, status=400)
+
+        return Response({
+            'message': 'Submitted for vetting.',
+            'lesson_plan': LessonPlanSerializer(plan).data,
+        })
+
+
+@extend_schema(tags=["Lesson Plans"])
+class LessonPlanVetView(SchoolScopedMixin, GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [IlimiAPIRenderer]
+
+    def post(self, request, pk, *args, **kwargs):
+        from apps.academics.models import LessonPlan
+        from apps.academics.services.lesson_plan_service import vet_lesson_plan
+
+        member = self.get_member()
+        try:
+            plan = LessonPlan.objects.select_related('facilitator__user').get(
+                pk=pk, school=member.school
+            )
+        except LessonPlan.DoesNotExist:
+            raise NotFound("Lesson plan not found.")
+
+        approved = bool(request.data.get('approved'))
+        remarks = request.data.get('remarks', '')
+
+        try:
+            vet_lesson_plan(plan, member, approved=approved, remarks=remarks)
+        except PermissionError as e:
+            return Response({'message': str(e)}, status=403)
+        except ValueError as e:
+            return Response({'message': str(e)}, status=400)
+
+        return Response({
+            'message': 'Plan vetted.' if approved else 'Plan returned for revision.',
+            'lesson_plan': LessonPlanSerializer(plan).data,
         })

@@ -5,6 +5,7 @@ from apps.academics.models import (
 from apps.tenants.models import SchoolMember
 from apps.tenants.models import SchoolMember, Branch
 from apps.academics.services.setup import get_or_create_class_level
+from apps.academics.models.lesson_plan import LessonPlan, LessonPlanDay
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):
@@ -298,3 +299,75 @@ class SubjectAssignmentCreateSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+class LessonPlanDaySerializer(serializers.ModelSerializer):
+    day_display = serializers.CharField(source='get_day_display', read_only=True)
+    has_content = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = LessonPlanDay
+        fields = [
+            'id', 'day', 'day_display', 'date', 'period',
+            'phase_1_starter', 'phase_2_main', 'phase_3_plenary',
+            'has_content', 'order',
+        ]
+        read_only_fields = ['day', 'order']
+
+
+class LessonPlanSerializer(serializers.ModelSerializer):
+    days = LessonPlanDaySerializer(many=True, read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    classroom_name = serializers.CharField(source='classroom.full_name', read_only=True)
+    facilitator_name = serializers.SerializerMethodField()
+    vetted_by_name = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_editable = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = LessonPlan
+        fields = [
+            'id', 'classroom', 'classroom_name', 'subject', 'subject_name', 'term',
+            'week_ending', 'class_size',
+            'strand', 'sub_strand',
+            'indicator_code', 'content_standard_code', 'performance_indicator',
+            'core_competencies', 'key_words', 'tlr', 'reference',
+            'facilitator', 'facilitator_name',
+            'status', 'status_display', 'is_editable', 'submitted_at',
+            'vetted_by', 'vetted_by_name', 'vetted_at', 'vetting_remarks',
+            'days', 'created_at',
+        ]
+        read_only_fields = [
+            'facilitator', 'status', 'submitted_at',
+            'vetted_by', 'vetted_at', 'vetting_remarks',
+        ]
+
+    def get_facilitator_name(self, obj):
+        return obj.facilitator.user.full_name if obj.facilitator else None
+
+    def get_vetted_by_name(self, obj):
+        return obj.vetted_by.user.full_name if obj.vetted_by else None
+
+
+class LessonPlanListSerializer(serializers.ModelSerializer):
+    """Lighter shape for lists and the vetting queue — no day bodies."""
+
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    classroom_name = serializers.CharField(source='classroom.full_name', read_only=True)
+    facilitator_name = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    days_written = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LessonPlan
+        fields = [
+            'id', 'classroom', 'classroom_name', 'subject', 'subject_name',
+            'week_ending', 'strand', 'sub_strand',
+            'facilitator', 'facilitator_name',
+            'status', 'status_display', 'submitted_at', 'vetted_at',
+            'days_written',
+        ]
+
+    def get_facilitator_name(self, obj):
+        return obj.facilitator.user.full_name if obj.facilitator else None
+
+    def get_days_written(self, obj):
+        return sum(1 for d in obj.days.all() if d.phase_2_main)

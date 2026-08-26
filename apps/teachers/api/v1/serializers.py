@@ -44,7 +44,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             'ssnit_number', 'ntc_license_number',
             'highest_qualification', 'institution_attended', 'years_of_experience',
             'subject_specializations', 'subject_specializations_display',
-            'employment_type', 'time_commitment', 'staff_category',
+            'employment_type', 'time_commitment', 'staff_category', 'teaches',
             'position', 'position_name', 'salary_grade',
             'date_of_first_appointment', 'date_joined_school',
             'is_on_probation', 'probation_end_date',
@@ -126,7 +126,7 @@ class StaffProfileListSerializer(serializers.ModelSerializer):
         model = StaffProfile
         fields = [
             'id', 'staff_id', 'full_name', 'title', 'gender',
-            'phone', 'email', 'employment_type', 'time_commitment', 'staff_category',
+            'phone', 'email', 'employment_type', 'time_commitment', 'staff_category', 'teaches',
             'position_name', 'status', 'badges',
             'branch_name', 'date_joined_school', 'photo',
             'school_member_id',
@@ -170,7 +170,7 @@ class StaffProfileCreateSerializer(serializers.ModelSerializer):
             'ssnit_number', 'ntc_license_number',
             'highest_qualification', 'institution_attended', 'years_of_experience',
             'subject_specializations',
-            'employment_type', 'time_commitment', 'staff_category',
+            'employment_type', 'time_commitment', 'staff_category', 'teaches',
             'position_name', 'salary_grade',
             'date_of_first_appointment', 'date_joined_school',
             'is_on_probation', 'probation_end_date',

@@ -200,6 +200,16 @@ class StaffProfile(models.Model):
     ghana_card_back = models.ImageField(
         upload_to=staff_document_path, null=True, blank=True
     )
+    teaches = models.BooleanField(
+        default=False,
+        verbose_name='Teaches classes',
+        help_text=(
+            'Whether this person can be assigned classes and subjects. '
+            'Separate from staff_category so a bursar or head of academics '
+            'who also teaches can still appear on the assignment screen.'
+        ),
+    )
+
     ssnit_number = models.CharField(
         max_length=50, blank=True, verbose_name='SSNIT Number'
     )

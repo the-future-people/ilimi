@@ -175,9 +175,12 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ── SMS ────────────────────────────────────────────────────────────────────
-SMS_BACKEND = 'apps.notifications.backends.console.ConsoleSMSBackend'
+SMS_BACKEND = env(
+    'SMS_BACKEND',
+    default='apps.notifications.backends.console.ConsoleSMSBackend',
+)
 SMS_API_KEY = env('SMS_API_KEY', default='')
-SMS_SENDER_ID = env('SMS_SENDER_ID', default='Ilimi')
+SMS_SENDER_ID = env('SMS_SENDER_ID', default='ilimighana')
 
 # ── Paystack ───────────────────────────────────────────────────────────────
 PAYSTACK_PUBLIC_KEY = env('PAYSTACK_PUBLIC_KEY', default='')

@@ -64,8 +64,15 @@ class MNotifySMSBackend:
             return {'status': 'error', 'message': 'SMS gateway timeout'}
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"SMS error sending to {phone}: {str(e)}")
-            return {'status': 'error', 'message': str(e)}
+            status = getattr(e.response, 'status_code', None)
+            # The key travels as a query parameter, so the exception text
+            # contains it. Never log or return the raw message.
+            logger.error(f"SMS error sending to {phone}: HTTP {status}")
+            return {
+                'status': 'error',
+                'message': f'SMS gateway error (HTTP {status}).' if status
+                           else 'SMS gateway unreachable.',
+            }
 
     def _to_local(self, phone):
         """

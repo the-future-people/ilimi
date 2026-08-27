@@ -20,6 +20,17 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
+    username = models.CharField(
+        max_length=30,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            'The name this person signs in with, chosen by them at setup. '
+            'Stored lowercase. Null for accounts created before usernames.'
+        ),
+    )
     phone_number = models.CharField(max_length=20, blank=True, unique=True, null=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)

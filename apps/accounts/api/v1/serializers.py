@@ -154,7 +154,9 @@ class IlimiTokenObtainSerializer(TokenObtainPairSerializer):
         # Three ways in: email for legacy accounts, phone, or the username
         # someone chose at setup. Tried in that order, first match wins.
         user = None
-        if "@" in identifier:
+        # A handle may be typed as @kings, so an email needs an @ that is
+        # not the first character.
+        if "@" in identifier[1:]:
             user = User.objects.filter(email=identifier.lower()).first()
         else:
             normalized = normalise_phone(identifier)

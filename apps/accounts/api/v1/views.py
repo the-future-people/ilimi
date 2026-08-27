@@ -131,7 +131,7 @@ class IlimiTokenObtainView(TokenObtainPairView):
         if response.status_code == 200:
             identifier = request.data.get("identifier", "").strip()
             user = None
-            if "@" in identifier:
+            if "@" in identifier[1:]:
                 user = User.objects.filter(email=identifier.lower()).first()
             else:
                 normalized = normalise_phone(identifier)

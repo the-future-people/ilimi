@@ -28,10 +28,13 @@ class InvalidUsername(ValueError):
 
 
 def normalise_username(raw):
-    """Lowercase and trim. Does not validate."""
+    """
+    Lowercase and trim, dropping a leading @. The handle is displayed as
+    @kings but stored as kings, and people type it both ways.
+    """
     if not raw:
         return ''
-    return str(raw).strip().lower()
+    return str(raw).strip().lstrip('@').lower()
 
 
 def validate_username(raw):

@@ -1,6 +1,5 @@
 from rest_framework.views import exception_handler
-from rest_framework.response import Response
-from rest_framework import status
+from apps.core.renderers import IlimiAPIRenderer
 
 
 def ilimi_exception_handler(exc, context):
@@ -17,7 +16,10 @@ def ilimi_exception_handler(exc, context):
             message = str(error_detail['detail'])
             errors = None
         elif isinstance(error_detail, dict):
-            message = 'Validation failed'
+            # Pull the real message out rather than saying 'Validation
+            # failed' and hiding it in errors. Same extraction the renderer
+            # uses, so the two cannot drift apart.
+            message = IlimiAPIRenderer._error_message(error_detail)
             errors = error_detail
         else:
             message = str(error_detail)

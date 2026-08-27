@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from apps.accounts.services.handles import normalise_username
+from apps.core.phone import normalise_phone, is_valid_phone
 from apps.tenants.services.onboarding import create_school_with_owner
 
 User = get_user_model()
@@ -149,15 +151,23 @@ class IlimiTokenObtainSerializer(TokenObtainPairSerializer):
         identifier = attrs.get("identifier", "").strip()
         password = attrs.get("password")
 
+        # Three ways in: email for legacy accounts, phone, or the username
+        # someone chose at setup. Tried in that order, first match wins.
+        user = None
         if "@" in identifier:
             user = User.objects.filter(email=identifier.lower()).first()
         else:
-            normalized = normalize_ghana_phone(identifier)
-            user = User.objects.filter(phone_number=normalized).first() if normalized else None
+            normalized = normalise_phone(identifier)
+            if normalized.startswith("+"):
+                user = User.objects.filter(phone_number=normalized).first()
+            if user is None:
+                user = User.objects.filter(
+                    username=normalise_username(identifier)
+                ).first()
 
         if user is None or not user.check_password(password):
             raise serializers.ValidationError(
-                "Invalid email/phone number or password.", code="authorization"
+                "Incorrect username or password.", code="authorization"
             )
 
         if not user.is_active:
@@ -221,9 +231,9 @@ class StartRegistrationSerializer(serializers.Serializer):
         return value
 
     def validate_phone_number(self, value):
-        normalized = normalize_ghana_phone(value)
-        if normalized is None:
+        if not is_valid_phone(value):
             raise serializers.ValidationError("Enter a valid Ghana phone number, e.g. 0244558389.")
+        normalized = normalise_phone(value)
         if User.objects.filter(phone_number=normalized).exists():
             raise serializers.ValidationError("An account with this phone number already exists.")
         return normalized
@@ -248,5 +258,7 @@ class VerifyAndCreateSerializer(serializers.Serializer):
     otp_code = serializers.CharField(min_length=4, max_length=8)
 
     def validate_phone_number(self, value):
-        normalized = normalize_ghana_phone(value)
+        if not is_valid_phone(value):
+            raise serializers.ValidationError("Enter a valid Ghana phone number, e.g. 0244558389.")
+        normalized = normalise_phone(value)
         return normalized or value.strip().replace(" ", "")

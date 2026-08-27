@@ -67,7 +67,8 @@ class MNotifySMSBackend:
             status = getattr(e.response, 'status_code', None)
             # The key travels as a query parameter, so the exception text
             # contains it. Never log or return the raw message.
-            logger.error(f"SMS error sending to {phone}: HTTP {status}")
+            body = getattr(e.response, 'text', '')[:300]
+            logger.error(f"SMS error sending to {phone}: HTTP {status} {body}")
             return {
                 'status': 'error',
                 'message': f'SMS gateway error (HTTP {status}).' if status

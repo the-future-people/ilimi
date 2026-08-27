@@ -13,6 +13,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from drf_spectacular.utils import extend_schema
 
+from apps.accounts.services.handles import normalise_username
+from apps.core.phone import is_valid_phone, normalise_phone
 from apps.core.renderers import IlimiAPIRenderer
 from apps.accounts.models import PendingRegistration
 from apps.accounts.services.registration import start_registration, resend_pending_otp, verify_and_create
@@ -24,8 +26,9 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     UserProfileSerializer,
     IlimiTokenObtainSerializer,
-    normalize_ghana_phone,
-)
+    )
+from apps.core.phone import normalise_phone, is_valid_phone
+from apps.accounts.services.handles import normalise_username
 
 User = get_user_model()
 
@@ -127,11 +130,17 @@ class IlimiTokenObtainView(TokenObtainPairView):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
             identifier = request.data.get("identifier", "").strip()
+            user = None
             if "@" in identifier:
                 user = User.objects.filter(email=identifier.lower()).first()
             else:
-                normalized = normalize_ghana_phone(identifier)
-                user = User.objects.filter(phone_number=normalized).first() if normalized else None
+                normalized = normalise_phone(identifier)
+                if normalized.startswith("+"):
+                    user = User.objects.filter(phone_number=normalized).first()
+                if user is None:
+                    user = User.objects.filter(
+                        username=normalise_username(identifier)
+                    ).first()
 
             if user:
                 response.data["user"] = UserProfileSerializer(user).data
@@ -210,10 +219,9 @@ class CheckAvailabilityView(GenericAPIView):
         if field == "email":
             exists = User.objects.filter(email=value.lower()).exists()
         elif field == "phone_number":
-            normalized = normalize_ghana_phone(value)
-            if normalized is None:
+            if not is_valid_phone(value):
                 return Response({"available": False, "message": "Please enter a valid Ghana phone number (e.g. 0244558389 or 244558389)."})
-            exists = User.objects.filter(phone_number=normalized).exists()
+            exists = User.objects.filter(phone_number=normalise_phone(value)).exists()
         elif field == "school_email":
             from apps.tenants.models import School
             exists = School.objects.filter(email=value.lower()).exists()

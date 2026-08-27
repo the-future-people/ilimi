@@ -1,11 +1,13 @@
 import logging
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.conf import settings
 
 from apps.accounts.models import User, StaffPortalInvite
+from apps.core.phone import normalise_phone
 from apps.teachers.models import StaffProfile
 from apps.notifications.services.sms import send_sms
+from apps.core.phone import normalise_phone
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +55,7 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request, rol
             password=None,  # unusable password until they set it
             first_name=staff.first_name,
             last_name=staff.last_name,
-            phone_number=staff.phone,
+            phone_number=normalise_phone(staff.phone),
             is_active=True,
         )
         user.set_unusable_password()
@@ -110,7 +112,7 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request, rol
 
 from apps.tenants.models import SchoolMember
 
-def accept_staff_invite(token: str, password: str) -> tuple:
+def accept_staff_invite(token: str, password: str, username: str = None) -> tuple:
     """
     Accept a staff portal invite and set password.
     Creates a SchoolMember record so the teacher can access their portal.
@@ -133,9 +135,27 @@ def accept_staff_invite(token: str, password: str) -> tuple:
         return False, "No user account found for this invite.", None
 
     # ── Set password ───────────────────────────────────────────────────────────
+        from django.db import IntegrityError
+    from apps.accounts.services.handles import validate_username, InvalidUsername
+
+    fields = ['password', 'is_phone_verified']
+
+    if username is not None:
+        try:
+            user.username = validate_username(username)
+        except InvalidUsername as e:
+            return False, str(e), None
+        fields.append('username')
+
     user.set_password(password)
     user.is_phone_verified = True
-    user.save(update_fields=['password', 'is_phone_verified'])
+
+    try:
+        user.save(update_fields=fields)
+    except IntegrityError:
+        # Someone claimed the same username between the availability
+        # check and this save.
+        return False, 'That username was just taken. Please choose another.', None
 
     # ── Create SchoolMember if not exists ──────────────────────────────────────
     SchoolMember.objects.get_or_create(

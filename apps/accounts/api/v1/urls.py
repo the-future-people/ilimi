@@ -9,7 +9,7 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
 )
-from .staff_access_views import StaffInviteView, StaffInviteAcceptView
+from .staff_access_views import StaffInviteView, StaffInviteAcceptView, UsernameAvailableView
 
 app_name = "auth-v1"
 
@@ -24,4 +24,5 @@ urlpatterns = [
     path("password/reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("staff/<int:staff_pk>/invite/", StaffInviteView.as_view(), name="staff-invite"),
     path("staff/setup/<uuid:token>/", StaffInviteAcceptView.as_view(), name="staff-setup"),
+    path("username-available/", UsernameAvailableView.as_view(), name="username-available"),
 ]

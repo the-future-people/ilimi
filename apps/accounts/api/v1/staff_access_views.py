@@ -2,6 +2,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
+from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
 
 from apps.core.renderers import IlimiAPIRenderer
@@ -11,6 +12,12 @@ from apps.accounts.models import StaffPortalInvite
 from apps.accounts.services.staff_invite import (
     send_staff_portal_invite,
     accept_staff_invite,
+)
+from apps.accounts.services.handles import (
+    suggest_usernames,
+    is_available,
+    validate_username,
+    InvalidUsername,
 )
 
 
@@ -59,6 +66,36 @@ class StaffInviteView(GenericAPIView):
 
 
 @extend_schema(tags=["Staff Access"])
+class UsernameAvailableView(GenericAPIView):
+    """
+    Public. Checked as someone types on the setup page.
+
+    Deliberately answers only 'can I have this one', never 'who has it',
+    so it cannot be used to enumerate accounts.
+    """
+
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    authentication_classes = []
+
+    def get(self, request, *args, **kwargs):
+        raw = request.query_params.get('username', '')
+
+        if not raw.strip():
+            return Response({'available': False, 'message': 'Choose a username.'})
+
+        try:
+            validate_username(raw)
+        except InvalidUsername as e:
+            return Response({'available': False, 'message': str(e)})
+
+        if not is_available(raw):
+            return Response({'available': False, 'message': 'That one is taken.'})
+
+        return Response({'available': True, 'message': 'Available'})
+
+
+@extend_schema(tags=["Staff Access"])
 class StaffInviteAcceptView(GenericAPIView):
     """Public. The staff member opens their link and sets a password."""
 
@@ -90,20 +127,36 @@ class StaffInviteAcceptView(GenericAPIView):
             'school_name': invite.staff.school.name,
             'role': invite.role,
             'expires_at': invite.expires_at,
+            'suggested_usernames': suggest_usernames(
+                invite.staff.first_name, invite.staff.last_name
+            ),
         })
 
     def post(self, request, token, *args, **kwargs):
         password = request.data.get('password', '')
         confirm = request.data.get('confirm_password', '')
+        username = request.data.get('username', '')
 
+        if not username.strip():
+            return Response({'message': 'Choose a username.'}, status=400)
         if len(password) < 8:
             return Response({'message': 'Your password needs at least 8 characters.'}, status=400)
         if password != confirm:
             return Response({'message': 'The two passwords do not match.'}, status=400)
 
-        success, message, user = accept_staff_invite(str(token), password)
+        success, message, user = accept_staff_invite(str(token), password, username)
 
         if not success:
             return Response({'message': message}, status=400)
 
-        return Response({'message': message, 'email': user.email})
+        # She has proved she holds the phone the link went to and has just
+        # set a password, so there is nothing to gain by making her sign in
+        # again — and a used link cannot tell her what to type.
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'message': message,
+            'username': user.username,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })

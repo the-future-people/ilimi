@@ -76,23 +76,36 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request, rol
     # ── Build SMS message ──────────────────────────────────────────────────────
     invite_url = _build_invite_url(request, invite.token)
     school_name = staff.school.name
+    # SMS bills per 160 characters, so this is kept to one part. The URL
+    # alone is around 60, which leaves little room for pleasantries.
     message = (
-        f"Hello {staff.first_name}, you have been granted access to the "
-        f"{school_name} staff portal on Ilimi. "
-        f"Set up your account here: {invite_url} "
-        f"This link expires in 48 hours."
+        f"Hi {staff.first_name}, set up your {school_name} staff portal "
+        f"on Ilimi: {invite_url} Expires in 48 hours."
     )
 
     # ── Send SMS ───────────────────────────────────────────────────────────────
-    try:
-        send_sms(staff.phone, message)
-        logger.info(f"Portal invite SMS sent to {staff.phone} for {staff.full_name}")
-    except Exception as e:
-        logger.error(f"SMS failed for staff invite {staff.staff_id}: {str(e)}")
-        # Don't fail the whole operation — invite still created
-        return True, f"Invite created. SMS did not send — share this link instead.", invite_url
+        # send_sms never raises — it reports failure in its return value, so the
+    # result has to be inspected or a silent gateway failure reads as success.
+    result = send_sms(staff.phone, message)
 
-    return True, f"Portal access invite sent to {staff.first_name} via SMS ({staff.phone}).", invite_url
+    if result.get('status') != 'success':
+        logger.error(
+            f"SMS failed for staff invite {staff.staff_id}: "
+            f"{result.get('message')}"
+        )
+        return (
+            True,
+            "Invite created, but the SMS could not be sent. "
+            "Share this link with them directly.",
+            invite_url,
+        )
+
+    logger.info(f"Portal invite SMS sent to {staff.phone} for {staff.full_name}")
+    return (
+        True,
+        f"Portal access invite sent to {staff.first_name} by SMS ({staff.phone}).",
+        invite_url,
+    )
 
 
 from apps.tenants.models import SchoolMember

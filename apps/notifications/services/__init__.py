@@ -6,7 +6,7 @@ from .notification_service import (
     mark_all_read,
     get_unread_count,
 )
-from .sms_service import send_sms
+from .sms import send_sms
 
 __all__ = [
     'create_notification',

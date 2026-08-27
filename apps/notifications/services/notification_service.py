@@ -18,9 +18,9 @@ def notify_admin_report_submitted(classroom, term, submitted_by):
     Notify all school admins when a teacher submits report cards
     for evaluation. Creates in-app notification + sends SMS.
     """
-    from apps.notifications.services.sms_service import send_sms
-
+    from apps.notifications.services.sms import send_sms
     school = classroom.school
+    # Get all admin members for the school
 
     # Get all admin members for the school
     admins = SchoolMember.objects.filter(
@@ -52,15 +52,13 @@ def notify_admin_report_submitted(classroom, term, submitted_by):
                 f"Ilimi: {teacher_name} submitted report cards for "
                 f"{classroom}, {term}. Please log in to review."
             )
-            send_sms(phone_number=str(admin.user.phone_number), message=sms_message)
+            send_sms(str(admin.user.phone_number), sms_message)
 
 
 def notify_admin_report_released(classroom, term, released_by):
     """Notify admins when report cards are released to parents."""
-    from apps.notifications.services.sms_service import send_sms
-
+    from apps.notifications.services.sms import send_sms
     school = classroom.school
-
     admins = SchoolMember.objects.filter(
         school=school,
         role='admin',

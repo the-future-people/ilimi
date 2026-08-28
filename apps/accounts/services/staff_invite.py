@@ -39,7 +39,7 @@ def send_staff_portal_invite(staff: StaffProfile, invited_by: User, request, rol
         return False, "This staff member has no phone number on record.", None
 
     # ── Check if already has active portal access ──────────────────────────────
-    if staff.user and staff.user.is_active and staff.user.is_phone_verified:
+    if staff.user and staff.user.is_active and staff.user.has_usable_password():
             return False, f"{staff.full_name} already has active portal access.", None
 
     # ── Create User account if not exists ─────────────────────────────────────

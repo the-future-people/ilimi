@@ -32,6 +32,13 @@ from apps.accounts.services.handles import normalise_username
 
 User = get_user_model()
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from apps.accounts.services.password_reset import (
+    request_reset,
+    verify_code,
+    complete_reset,
+)
+
 
 def _tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -154,7 +161,67 @@ class IlimiTokenRefreshView(TokenRefreshView):
 
 
 @extend_schema(tags=["Auth"])
-class PasswordResetRequestView(GenericAPIView):
+class PasswordResetStartView(GenericAPIView):
+    """Public. Sends a code to a registered phone."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        ok, message = request_reset(request.data.get('phone_number', ''))
+        return Response({'message': message}, status=200 if ok else 400)
+
+
+@extend_schema(tags=["Auth"])
+class PasswordResetVerifyView(GenericAPIView):
+    """Public. Exchanges a code for a short-lived ticket."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        ok, message, ticket = verify_code(
+            request.data.get('phone_number', ''),
+            request.data.get('code', ''),
+        )
+        if not ok:
+            return Response({'message': message}, status=400)
+        return Response({'message': message, 'ticket': ticket})
+
+
+@extend_schema(tags=["Auth"])
+class PasswordResetCompleteView(GenericAPIView):
+    """Public. Sets the new password and signs them in."""
+
+    permission_classes = [AllowAny]
+    renderer_classes = [IlimiAPIRenderer]
+    authentication_classes = []
+
+    def post(self, request, *args, **kwargs):
+        password = request.data.get('new_password', '')
+        confirm = request.data.get('confirm_password', '')
+
+        if len(password) < 8:
+            return Response({'message': 'Your password needs at least 8 characters.'}, status=400)
+        if password != confirm:
+            return Response({'message': 'The two passwords do not match.'}, status=400)
+
+        ok, message, user = complete_reset(request.data.get('ticket', ''), password)
+        if not ok:
+            return Response({'message': message}, status=400)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'message': message,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
+
+
+@extend_schema(tags=["Auth"])
+class _RemovedPasswordResetRequestView(GenericAPIView):
     serializer_class = PasswordResetRequestSerializer
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]

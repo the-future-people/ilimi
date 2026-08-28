@@ -6,8 +6,9 @@ from .views import (
     CheckAvailabilityView,
     IlimiTokenObtainView,
     IlimiTokenRefreshView,
-    PasswordResetRequestView,
-    PasswordResetConfirmView,
+    PasswordResetStartView,
+    PasswordResetVerifyView,
+    PasswordResetCompleteView,
 )
 from .staff_access_views import StaffInviteView, StaffInviteAcceptView, UsernameAvailableView
 
@@ -20,8 +21,9 @@ urlpatterns = [
     path("register/check-availability/", CheckAvailabilityView.as_view(), name="check-availability"),
     path("token/", IlimiTokenObtainView.as_view(), name="token-obtain"),
     path("token/refresh/", IlimiTokenRefreshView.as_view(), name="token-refresh"),
-    path("password/reset/", PasswordResetRequestView.as_view(), name="password-reset"),
-    path("password/reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
+    path("password/reset/", PasswordResetStartView.as_view(), name="password-reset"),
+    path("password/reset/verify/", PasswordResetVerifyView.as_view(), name="password-reset-verify"),
+    path("password/reset/complete/", PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("staff/<int:staff_pk>/invite/", StaffInviteView.as_view(), name="staff-invite"),
     path("staff/setup/<uuid:token>/", StaffInviteAcceptView.as_view(), name="staff-setup"),
     path("username-available/", UsernameAvailableView.as_view(), name="username-available"),

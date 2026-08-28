@@ -1,17 +1,14 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from drf_spectacular.utils import extend_schema
+from django.contrib.auth import get_user_model
 
 from apps.accounts.services.handles import normalise_username
 from apps.core.phone import is_valid_phone, normalise_phone
@@ -22,11 +19,9 @@ from apps.accounts.services.registration import start_registration, resend_pendi
 from .serializers import (
     StartRegistrationSerializer,
     VerifyAndCreateSerializer,
-    PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer,
     UserProfileSerializer,
     IlimiTokenObtainSerializer,
-    )
+)
 from apps.core.phone import normalise_phone, is_valid_phone
 from apps.accounts.services.handles import normalise_username
 
@@ -167,6 +162,8 @@ class PasswordResetStartView(GenericAPIView):
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
 
     def post(self, request, *args, **kwargs):
         ok, message = request_reset(request.data.get('phone_number', ''))
@@ -180,6 +177,8 @@ class PasswordResetVerifyView(GenericAPIView):
     permission_classes = [AllowAny]
     renderer_classes = [IlimiAPIRenderer]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'otp_verify'
 
     def post(self, request, *args, **kwargs):
         ok, message, ticket = verify_code(
@@ -218,57 +217,6 @@ class PasswordResetCompleteView(GenericAPIView):
             'access': str(refresh.access_token),
             'refresh': str(refresh),
         })
-
-
-@extend_schema(tags=["Auth"])
-class _RemovedPasswordResetRequestView(GenericAPIView):
-    serializer_class = PasswordResetRequestSerializer
-    permission_classes = [AllowAny]
-    renderer_classes = [IlimiAPIRenderer]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
-        user = User.objects.filter(email=email).first()
-        if user and user.is_active:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            # TODO: send via notifications backend
-        return Response(
-            {"message": "If that email is registered, you'll receive a reset link shortly."},
-            status=status.HTTP_200_OK,
-        )
-
-
-@extend_schema(tags=["Auth"])
-class PasswordResetConfirmView(GenericAPIView):
-    serializer_class = PasswordResetConfirmSerializer
-    permission_classes = [AllowAny]
-    renderer_classes = [IlimiAPIRenderer]
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            pk = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
-            user = User.objects.get(pk=pk)
-        except (User.DoesNotExist, ValueError, TypeError):
-            return Response(
-                {"status": "error", "message": "Invalid or expired reset link."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not default_token_generator.check_token(user, serializer.validated_data["token"]):
-            return Response(
-                {"status": "error", "message": "Invalid or expired reset link."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        user.set_password(serializer.validated_data["new_password"])
-        user.save(update_fields=["password"])
-        return Response(
-            {"message": "Password updated successfully. You can now log in."},
-            status=status.HTTP_200_OK,
-        )
 
 
 @extend_schema(tags=["Auth"])

@@ -148,7 +148,11 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_THROTTLE_RATES': {
-        'demo_request': '10/hour',
+    'demo_request': '10/hour',
+    # Each successful request sends a real SMS, so this is a spend
+    # limit as much as a security one.
+    'password_reset': '5/hour',
+    'otp_verify': '20/hour',
     },
 }
 

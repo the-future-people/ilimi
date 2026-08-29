@@ -53,8 +53,12 @@ DEFAULT_ROLES = [
     {
         'slug': 'administrator',
         'name': 'Administrator',
-        'description': 'Registers students and parents, issues documents and formalities.',
+        'description': (
+        'Registers students and parents, issues documents and formalities. '
+        'Also collects fees where a school has no separate accounts office.'
+        ),
         'permissions': {
+            'fees': FULL,
             'students': FULL,
             'admissions': FULL,
             'staff': VIEW,

@@ -94,8 +94,8 @@ class StaffProfileSerializer(serializers.ModelSerializer):
             return {
                 'status': 'active',
                 'email': obj.user.email,
-                'role': member.role,
-                'role_display': member.get_role_display(),
+                'role': member.role_ref.slug if member.role_ref else None,
+                'role_display': member.role_ref.name if member.role_ref else '',
             }
 
         invite = StaffPortalInvite.objects.filter(staff=obj).first()

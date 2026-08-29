@@ -1,3 +1,5 @@
+from enum import member
+
 from django.core.files.base import ContentFile
 from django.db import transaction
 from rest_framework import status
@@ -17,6 +19,7 @@ from apps.documents.services import (
     build_full_context,
     ExtraFieldValidationError,
 )
+from apps.tenants.permissions import is_admin_tier
 from .serializers import (
     DocumentTemplateSerializer,
     GeneratedDocumentSerializer,
@@ -44,7 +47,7 @@ class SchoolScopedMixin:
 
     def require_admin(self):
         member = self.get_member()
-        if member.role != 'school_admin':
+        if not is_admin_tier(member):
             raise PermissionDenied("Only school administrators can manage documents.")
         return member
 

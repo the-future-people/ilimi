@@ -58,6 +58,7 @@ def invite_member(school, invited_by, data):
             school=school,
             branch=branch,
             role=role,
+            role_ref=_resolve_role(school, role),
             is_active=True,
         )
         _notify_existing_user(existing_user, school, role, invited_by)
@@ -84,6 +85,7 @@ def invite_member(school, invited_by, data):
             school=school,
             branch=branch,
             role=role,
+            role_ref=_resolve_role(school, role),
             is_active=True,
         )
         _notify_new_user(new_user, school, role, temp_password, invited_by)
@@ -95,12 +97,33 @@ def invite_member(school, invited_by, data):
         }
 
 
+def _resolve_role(school, slug):
+    """
+    The school's role for this slug, seeding defaults if the school has
+    none yet. Falls back to teacher rather than leaving someone with no
+    permissions at all.
+    """
+    from apps.tenants.models import SchoolRole
+    from apps.tenants.services.roles import seed_default_roles
+
+    role = SchoolRole.objects.filter(school=school, slug=slug).first()
+    if role:
+        return role
+
+    seed_default_roles(school)
+    return (
+        SchoolRole.objects.filter(school=school, slug=slug).first()
+        or SchoolRole.objects.filter(school=school, slug='teacher').first()
+    )
+
+
 def _notify_existing_user(user, school, role, invited_by):
     """Notify an existing platform user they've been added to a school."""
-    role_display = dict(SchoolMember.ROLE_CHOICES).get(role, role) if hasattr(SchoolMember, 'ROLE_CHOICES') else role
+    resolved = _resolve_role(school, role)
+    role_display = resolved.name if resolved else role
     message = (
         f"Hi {user.first_name}, you have been added to {school.name} "
-        f"as {role} by {invited_by.full_name}. "
+        f"as {role_display} by {invited_by.full_name}. "
         f"Log in at ilimi.app to get started."
     )
     if user.phone_number:

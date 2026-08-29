@@ -2,8 +2,11 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
-from apps.tenants.models import School, Branch, SchoolMember, SubscriptionPlan
+from apps.tenants.models import School, Branch, SchoolMember, SubscriptionPlan, SchoolRole
+from apps.tenants.services.roles import seed_default_roles
 from apps.notifications.services.sms import send_welcome_sms
+from apps.tenants.models.role import SchoolRole
+from apps.tenants.services.roles import seed_default_roles
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,8 @@ def create_school_with_owner(user, school_data):
         onboarding_step=2,
     )
 
+    seed_default_roles(school)
+
     branch = Branch.objects.create(
         school=school,
         name='Main Campus',
@@ -45,11 +50,17 @@ def create_school_with_owner(user, school_data):
         is_active=True,
     )
 
+        # The person registering the school is running it, not merely
+    # overseeing it, so they start as assistant head. A genuine owner who
+    # delegates day-to-day work is moved to proprietor afterwards.
+    owner_role = SchoolRole.objects.get(school=school, slug='assistant_head')
+
     SchoolMember.objects.create(
         user=user,
         school=school,
         branch=branch,
         role='school_admin',
+        role_ref=owner_role,
         position_title=school_data.get('position_title', ''),
         is_active=True,
     )

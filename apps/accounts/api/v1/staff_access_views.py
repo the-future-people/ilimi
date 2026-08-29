@@ -1,3 +1,4 @@
+from rest_framework import request
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -19,6 +20,8 @@ from apps.accounts.services.handles import (
     validate_username,
     InvalidUsername,
 )
+from apps.tenants.models.role import SchoolRole
+from apps.tenants.permissions import is_admin_tier
 
 
 @extend_schema(tags=["Staff Access"])
@@ -33,7 +36,7 @@ class StaffInviteView(GenericAPIView):
             user=request.user, is_active=True
         ).select_related('school').first()
 
-        if not member or member.role not in ('school_admin', 'branch_manager'):
+        if not member or not is_admin_tier(member):
             return Response({'message': 'Only an administrator can grant portal access.'}, status=403)
 
         try:
@@ -44,7 +47,11 @@ class StaffInviteView(GenericAPIView):
             raise NotFound("Staff member not found.")
 
         role = request.data.get('role', 'teacher')
-        valid_roles = {r[0] for r in SchoolMember.ROLE_CHOICES}
+        valid_roles = set(
+            SchoolRole.objects.filter(
+                school=member.school, is_active=True
+            ).values_list('slug', flat=True)
+        )
         if role not in valid_roles:
             return Response({'message': f"'{role}' is not a valid role."}, status=400)
 

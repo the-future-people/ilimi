@@ -13,6 +13,7 @@ from apps.notifications.services.sms import send_sms
 from apps.notifications.services.reminders import (
     request_reminder, approve_reminder, decline_reminder,
 )
+from apps.tenants.permissions import is_admin_tier
 
 from .serializers import (
     PaymentReminderRequestSerializer,
@@ -58,7 +59,7 @@ class PaymentReminderRequestListCreateView(SchoolScopedMixin, GenericAPIView):
         qs = PaymentReminderRequest.objects.filter(school=school).select_related(
             'student', 'requested_by__user', 'reviewed_by__user'
         )
-        if member.role not in ('school_admin', 'branch_manager'):
+        if not is_admin_tier(member):
             qs = qs.filter(requested_by=member)
 
         status_filter = request.query_params.get('status')
@@ -116,7 +117,7 @@ class PaymentReminderApproveView(SchoolScopedMixin, GenericAPIView):
         school = self.get_school()
         member = self.get_member()
 
-        if member.role not in ('school_admin', 'branch_manager'):
+        if not is_admin_tier(member):
             return Response(
                 {'message': 'Only an admin can approve and send reminders.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -166,7 +167,7 @@ class PaymentReminderDeclineView(SchoolScopedMixin, GenericAPIView):
         school = self.get_school()
         member = self.get_member()
 
-        if member.role not in ('school_admin', 'branch_manager'):
+        if not is_admin_tier(member):
             return Response(
                 {'message': 'Only an admin can decline a reminder request.'},
                 status=status.HTTP_403_FORBIDDEN,

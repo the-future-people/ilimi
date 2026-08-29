@@ -19,6 +19,7 @@ from apps.communications.services.consent import (
     send_consent_pdf_email,
     build_whatsapp_share_link,
 )
+from apps.tenants.permissions import is_admin_tier
 from .serializers import (
     ExcursionSerializer,
     ExcursionCreateSerializer,
@@ -303,7 +304,7 @@ class MessageListCreateView(SchoolScopedMixin, GenericAPIView):
             'composed_by__user', 'reviewed_by__user',
             'target_student', 'target_staff_member__user', 'target_classroom',
         )
-        if member and member.role not in ('school_admin', 'branch_manager'):
+        if member and not is_admin_tier(member):
             qs = qs.filter(composed_by=member)
 
         status_filter = request.query_params.get('status')
@@ -323,9 +324,9 @@ class MessageListCreateView(SchoolScopedMixin, GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        is_admin_tier = member and member.role in ('school_admin', 'branch_manager')
+        admin_tier = member and is_admin_tier(member)
 
-        if is_admin_tier:
+        if admin_tier:
             message = Message.objects.create(
                 school=school, composed_by=member, status='approved', **data
             )
@@ -361,7 +362,7 @@ class MessageApproveView(SchoolScopedMixin, GenericAPIView):
             user=request.user, school=school, is_active=True
         ).first()
 
-        if not member or member.role not in ('school_admin', 'branch_manager'):
+        if not member or not is_admin_tier(member):
             return Response(
                 {'message': 'Only an admin can approve messages.'},
                 status=status.HTTP_403_FORBIDDEN,
@@ -392,7 +393,7 @@ class MessageDeclineView(SchoolScopedMixin, GenericAPIView):
             user=request.user, school=school, is_active=True
         ).first()
 
-        if not member or member.role not in ('school_admin', 'branch_manager'):
+        if not member or not is_admin_tier(member):
             return Response(
                 {'message': 'Only an admin can decline messages.'},
                 status=status.HTTP_403_FORBIDDEN,

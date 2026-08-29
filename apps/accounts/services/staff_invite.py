@@ -157,12 +157,30 @@ def accept_staff_invite(token: str, password: str, username: str = None) -> tupl
         # check and this save.
         return False, 'That username was just taken. Please choose another.', None
 
-    # ── Create SchoolMember if not exists ──────────────────────────────────────
+        # ── Create SchoolMember if not exists ──────────────────────────────────────
+    from apps.tenants.models import SchoolRole
+    from apps.tenants.services.roles import seed_default_roles
+
+    school = invite.staff.school
+    slug = invite.role or 'teacher'
+
+    role = SchoolRole.objects.filter(school=school, slug=slug).first()
+    if not role:
+        # A school created before roles existed, or an invite naming a role
+        # this school does not have. Seed the defaults and fall back to
+        # teacher rather than leaving the person with no permissions.
+        seed_default_roles(school)
+        role = (
+            SchoolRole.objects.filter(school=school, slug=slug).first()
+            or SchoolRole.objects.filter(school=school, slug='teacher').first()
+        )
+
     SchoolMember.objects.get_or_create(
         user=user,
-        school=invite.staff.school,
+        school=school,
         defaults={
-            'role': invite.role or 'teacher',
+            'role': slug,
+            'role_ref': role,
             'branch': invite.staff.branch,
             'is_active': True,
         }

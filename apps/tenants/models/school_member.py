@@ -37,6 +37,17 @@ class SchoolMember(models.Model):
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    role_ref = models.ForeignKey(
+        'tenants.SchoolRole',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='members',
+        help_text=(
+            'The role this person holds. Replaces the legacy role string, '
+            'which is kept until every reader has moved across.'
+        ),
+    )
     is_lead = models.BooleanField(
         default=False,
         help_text="Senior/primary person within this role at this school (e.g. "
@@ -54,7 +65,8 @@ class SchoolMember(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.user.full_name} - {self.get_role_display()} at {self.school.name}'
+        role_name = self.role_ref.name if self.role_ref_id else self.role
+        return f'{self.user.full_name} - {role_name} at {self.school.name}'
 
     @property
     def is_school_level(self):

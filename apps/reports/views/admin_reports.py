@@ -19,7 +19,7 @@ from apps.academics.models import ClassRoom, Term
 def _get_admin_membership(request):
     return SchoolMember.objects.filter(
         user=request.user,
-        role__in=('school_admin', 'branch_manager'),
+        role_ref__slug__in=('proprietor', 'assistant_head'),
         is_active=True,
     ).select_related('school', 'branch').first()
 

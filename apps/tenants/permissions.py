@@ -1,103 +1,148 @@
 """
-Single source of truth for role -> domain permissions.
+Role -> domain permissions.
 
-Mirrored in the frontend at src/constants/permissions.js — keep both in
-sync by hand; each file comments a pointer to the other. A small static
-map is deliberate here rather than a database-driven/API-fetched system:
-five roles, seven domains, no per-school customization yet. Revisit if
-that ever changes.
+Roles and their bundles now live in the database, per school, because
+Ghanaian schools distribute the same work differently: a school with no
+accounts office gives fees to its administrator, and an assistant head may
+run academics at one school and admissions at another. A static map could
+not express that.
 
-Levels are intentionally coarse for now ('full' or absent). A domain not
-listed for a role means no access at all — NOT read-only. Read-only-style
-access, if ever needed, should be a distinct, deliberately-designed level,
-not assumed.
+Levels, weakest first:
+  view     - can see, cannot change
+  request  - can propose; someone else approves
+  full     - can do
+
+A domain not listed for a role means no access at all.
 """
+from apps.tenants.models import RolePermission
 
 DOMAINS = [
-    'students', 'staff', 'attendance', 'fees',
-    'communications', 'documents', 'reports', 'parents',
+    'students', 'staff', 'attendance', 'fees', 'admissions',
+    'academics', 'communications', 'documents', 'reports', 'parents',
 ]
 
-ROLE_PERMISSIONS = {
-    'school_admin':   {d: 'full' for d in DOMAINS},
-    'branch_manager': {d: 'full' for d in DOMAINS},
-    'accountant':     {'fees': 'full'},
-    'registrar':      {'students': 'full', 'staff': 'full', 'documents': 'full', 'reports': 'full', 'parents': 'full', 'communications': 'request'},
-    # Academic oversight. May also carry a teaching load via SubjectAssignment
-    # — the role grants oversight, it does not replace being a facilitator.
-    'head_of_academics': {'students': 'full', 'reports': 'full'},
-    # Teachers operate through the separate /teacher/* route tree and its
-    # own object-level checks (their own classes only) — not modeled here.
-    'teacher':        {},
-    # Reserved, no defined feature surface yet. Do not assign in production.
-    'receptionist':   {},
-}
+LEVEL_RANK = RolePermission.LEVEL_RANK
+
+
+def _permissions_for(member):
+    """
+    {domain: level} for this member, cached on the instance.
+
+    Permission checks happen several times per request, and each one was
+    a dictionary lookup before. Caching keeps it to one query.
+    """
+    if member is None:
+        return {}
+
+    cached = getattr(member, '_permission_cache', None)
+    if cached is not None:
+        return cached
+
+    if not member.role_ref_id:
+        member._permission_cache = {}
+        return {}
+
+    perms = {
+        p.domain: p.level
+        for p in RolePermission.objects.filter(role_id=member.role_ref_id)
+    }
+    member._permission_cache = perms
+    return perms
 
 
 def has_domain_access(member, domain, level='full'):
+    """
+    True when this member's role reaches at least `level` on `domain`.
+
+    Ranked, so full satisfies a request or view requirement, and view
+    satisfies neither of the others.
+    """
     if member is None:
         return False
-    permissions = ROLE_PERMISSIONS.get(member.role, {})
-    granted = permissions.get(domain)
-    if level == 'full':
-        return granted == 'full'
-    # 'request'-level access is satisfied by either an explicit 'request'
-    # grant or full access (full implies you can do anything a requester can).
-    return granted in ('full', 'request')
+
+    granted = _permissions_for(member).get(domain)
+    if not granted:
+        return False
+
+    return LEVEL_RANK.get(granted, 0) >= LEVEL_RANK.get(level, 99)
 
 
-def domains_for_role(role):
-    """All domains a role has 'full' access to — used to filter the
-    dashboard's domain cards to what a user can actually open."""
-    return [
-        domain for domain, level in ROLE_PERMISSIONS.get(role, {}).items()
-        if level == 'full'
-    ]
+def domains_for_role(member):
+    """
+    Domains this member can open at all, at any level. Used to filter the
+    dashboard cards to what they can actually reach.
 
-# Sensitive, within-domain actions that require lead status on top of
-# ordinary domain access. Keyed by (role, action) so each role's lead
-# powers are named explicitly rather than inferred.
+    Takes a member now, not a role string, because the bundle belongs to
+    the school's role rather than to a global name.
+    """
+    return sorted(_permissions_for(member).keys())
+
+
+def role_slug(member):
+    """The stable slug, for code that needs to branch on which role this is."""
+    if member is None or not member.role_ref_id:
+        return None
+    return member.role_ref.slug
+
+def is_admin_tier(member):
+    """
+    True for roles that run or oversee the school rather than one domain.
+
+    Views used to ask 'is this a school_admin or branch_manager', which
+    breaks whenever roles change. Where a view really means 'can they do X',
+    use has_domain_access instead — this is only for genuinely school-wide
+    authority, like approving another person's message.
+    """
+    return role_slug(member) in OVERSIGHT_ROLES
+
+
+# ── Lead-tier actions ──────────────────────────────────────────────────────
+# Sensitive actions inside an already-accessible domain, e.g. the Main
+# Accountant versus a second accountant. Keyed by role slug.
+
 LEAD_ONLY_ACTIONS = {
-    ('accountant', 'void_payment'),
-    ('accountant', 'edit_fee_structure'),
-    ('accountant', 'close_term_books'),
-    ('accountant', 'manage_accountants'),
-    ('registrar', 'approve_enrolment'),
-    ('registrar', 'generate_official_document'),
-    ('registrar', 'manage_registrars'),
+    ('accounts', 'void_payment'),
+    ('accounts', 'edit_fee_structure'),
+    ('accounts', 'close_term_books'),
+    ('accounts', 'manage_accountants'),
+    ('administrator', 'approve_enrolment'),
+    ('administrator', 'generate_official_document'),
+    ('administrator', 'manage_registrars'),
 }
+
+# Roles that oversee rather than operate. Not subject to lead tiering.
+OVERSIGHT_ROLES = {'proprietor', 'assistant_head'}
 
 
 def can_perform(member, action):
     """
-    Check a specific sensitive action, e.g. can_perform(member, 'void_payment').
+    Gate a sensitive within-domain action.
 
-    Domain access (can they open Fees at all) is a separate, earlier check
-    via has_domain_access — this only gates the smaller set of actions that
-    additionally require lead status within an already-accessible domain.
-    Admin-tier roles bypass this entirely; they're not subject to lead
-    tiering since they already have full access to everything.
+    Domain access is a separate, earlier check. This only covers the
+    smaller set of actions that additionally require lead status.
     """
     if member is None:
         return False
-    if member.role in ('school_admin', 'branch_manager'):
+
+    slug = role_slug(member)
+    if slug in OVERSIGHT_ROLES:
         return True
-    if (member.role, action) not in LEAD_ONLY_ACTIONS:
-        # Not a lead-gated action at all — ordinary domain access already
-        # covers it, nothing further to check here.
+    if (slug, action) not in LEAD_ONLY_ACTIONS:
         return True
     return bool(member.is_lead)
 
-# Roles permitted to vet lesson plans. The head of academics vets
-# facilitators; admin-tier vets the head of academics when they teach.
-# Nobody vets a plan they wrote themselves — enforced at the call site.
-VETTING_ROLES = {'head_of_academics', 'school_admin', 'branch_manager'}
+
+# ── Lesson plan vetting ────────────────────────────────────────────────────
+# Academics vets facilitators; the assistant head and proprietor vet
+# academics when they teach. Nobody vets their own plan.
+
+VETTING_ROLES = {'academics', 'assistant_head', 'proprietor'}
 
 
 def can_vet_lesson_plans(member):
     if member is None:
         return False
-    return member.role in VETTING_ROLES
+    return role_slug(member) in VETTING_ROLES
 
 
 def can_vet_plan(member, plan):

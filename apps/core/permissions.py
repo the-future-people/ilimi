@@ -54,7 +54,7 @@ class IsSchoolAdminOrBranchManager(BasePermission):
             request.user and
             request.user.is_authenticated and
             request.user.school_memberships.filter(
-                role__in=['school_admin', 'branch_manager'],
+                role_ref__slug__in=['proprietor', 'assistant_head'],
                 is_active=True
             ).exists()
         )

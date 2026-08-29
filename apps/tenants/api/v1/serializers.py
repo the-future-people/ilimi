@@ -1,8 +1,8 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 from apps.tenants.models import School, Branch, SchoolMember
 
 
-# ── Branch ────────────────────────────────────────────────────────────────
+# â”€â”€ Branch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,7 +47,7 @@ class BranchCreateSerializer(serializers.ModelSerializer):
         return value.upper()
 
 
-# ── School ────────────────────────────────────────────────────────────────
+# â”€â”€ School â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SchoolSerializer(serializers.ModelSerializer):
     branches = BranchSerializer(many=True, read_only=True)
@@ -98,7 +98,7 @@ class SchoolUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
-# ── School Member ─────────────────────────────────────────────────────────
+# â”€â”€ School Member â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SchoolMemberSerializer(serializers.ModelSerializer):
     user_email = serializers.EmailField(source="user.email", read_only=True)
@@ -155,7 +155,7 @@ class SchoolMemberInviteSerializer(serializers.Serializer):
         return value
 
 
-# ── My Memberships ────────────────────────────────────────────────────────
+# â”€â”€ My Memberships â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class MyMembershipSerializer(serializers.ModelSerializer):
     school_id      = serializers.IntegerField(source="school.id", read_only=True)
@@ -163,7 +163,28 @@ class MyMembershipSerializer(serializers.ModelSerializer):
     school_logo    = serializers.ImageField(source="school.logo", read_only=True)
     branch_id      = serializers.IntegerField(source="branch.id", read_only=True, allow_null=True)
     branch_name    = serializers.SerializerMethodField()
-    role_display   = serializers.CharField(source="get_role_display", read_only=True)
+    role           = serializers.SerializerMethodField()
+    role_display   = serializers.SerializerMethodField()
+    permissions    = serializers.SerializerMethodField()
+
+    def get_role(self, obj):
+        """The stable slug. Frontend guards compare against this."""
+        return obj.role_ref.slug if obj.role_ref_id else obj.role
+
+    def get_role_display(self, obj):
+        """What this school calls the job, so a renamed role shows through."""
+        return obj.role_ref.name if obj.role_ref_id else obj.get_role_display()
+
+    def get_permissions(self, obj):
+        """
+        {domain: level} for this member.
+
+        Sent so the frontend can hide what someone cannot reach without
+        mirroring the permission table by hand â€” the old approach, which
+        drifted from the backend.
+        """
+        from apps.tenants.permissions import _permissions_for
+        return _permissions_for(obj)
 
     class Meta:
         model = SchoolMember
@@ -176,6 +197,7 @@ class MyMembershipSerializer(serializers.ModelSerializer):
             "branch_name",
             "role",
             "role_display",
+            "permissions",
             "is_active",
             "has_seen_tour",
             "joined_at",

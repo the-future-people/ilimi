@@ -1,3 +1,4 @@
+from apps.core.scoping import SchoolScopedMixin
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -30,15 +31,6 @@ ADMIN_TIER_ROLES = {'school_admin', 'branch_manager'}
 
 
 # ── Mixin ─────────────────────────────────────────────────────────────────
-
-class SchoolScopedMixin:
-    def get_school(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related("school").first()
-        if not member:
-            raise NotFound("No school found for your account.")
-        return member.school
 
 # ── My Memberships ───────────────────────────────────────────────────────
 

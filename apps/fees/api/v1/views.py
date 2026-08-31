@@ -1,3 +1,4 @@
+from apps.core.scoping import SchoolScopedMixin
 from decimal import Decimal
 from datetime import timedelta
 
@@ -41,24 +42,6 @@ from .serializers import (
 
 
 # ── Mixin ─────────────────────────────────────────────────────────────────
-
-class SchoolScopedMixin:
-    def get_school(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school').first()
-        if not member:
-            raise NotFound("No school found for your account.")
-        return member.school
-
-    def get_member(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school', 'branch').first()
-        if not member:
-            raise NotFound("No school found for your account.")
-        return member
-
 
 # ── Fee Types ─────────────────────────────────────────────────────────────
 

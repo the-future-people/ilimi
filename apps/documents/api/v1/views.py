@@ -20,6 +20,7 @@ from apps.documents.services import (
     ExtraFieldValidationError,
 )
 from apps.tenants.permissions import is_admin_tier
+from apps.core.scoping import SchoolScopedMixin as CoreSchoolScopedMixin
 from .serializers import (
     DocumentTemplateSerializer,
     GeneratedDocumentSerializer,
@@ -28,22 +29,7 @@ from .serializers import (
 )
 
 
-class SchoolScopedMixin:
-    def get_school(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school').first()
-        if not member:
-            raise NotFound("No school found for your account.")
-        return member.school
-
-    def get_member(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school', 'branch').first()
-        if not member:
-            raise NotFound("No school found for your account.")
-        return member
+class SchoolScopedMixin(CoreSchoolScopedMixin):
 
     def require_admin(self):
         member = self.get_member()

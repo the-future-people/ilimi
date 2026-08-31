@@ -1,3 +1,4 @@
+from apps.core.scoping import SchoolScopedMixin
 from datetime import date as dt_date
 
 from rest_framework import status
@@ -57,24 +58,6 @@ from .serializers import (
 
 
 # ── Mixin ──────────────────────────────────────────────────────────────────────
-
-class SchoolScopedMixin:
-    def get_school(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school').first()
-        if not member:
-            raise NotFound("No active school found for your account.")
-        return member.school
-
-    def get_member(self):
-        member = SchoolMember.objects.filter(
-            user=self.request.user, is_active=True
-        ).select_related('school', 'branch').first()
-        if not member:
-            raise NotFound("No active school found for your account.")
-        return member
-
 
 # ── Attendance Settings ────────────────────────────────────────────────────────
 

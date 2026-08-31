@@ -67,6 +67,9 @@ MIDDLEWARE = [
     'apps.tenants.middleware.OnboardingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Enabled once the permissions audit is done — gating Ilimi staff while
+    # 76 endpoints have no domain checks would secure the wrong door first.
+    # 'apps.agamotto.middleware.SupportSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

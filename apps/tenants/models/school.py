@@ -10,6 +10,24 @@ class School(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    CURRICULUM_GES = 'ges'
+    CURRICULUM_CAMBRIDGE = 'cambridge'
+    CURRICULUM_HYBRID = 'hybrid'
+
+    CURRICULUM_CHOICES = [
+        (CURRICULUM_GES, 'GES (Ghana Education Service)'),
+        (CURRICULUM_CAMBRIDGE, 'Cambridge'),
+        (CURRICULUM_HYBRID, 'Hybrid (GES and Cambridge)'),
+    ]
+
+    # Only GES is implemented. The class ladder, the band split between
+    # class teachers and subject specialists, the three-term calendar and
+    # the lesson note format are all GES-shaped. Cambridge and hybrid are
+    # selectable so a school can tell us what they follow, but setup says
+    # plainly that support is not ready rather than handing them a GES
+    # product wearing a Cambridge label.
+    CURRICULUM_SUPPORTED = {CURRICULUM_GES}
+
     SCHOOL_TYPE_CHOICES = [
         ('basic', 'Basic / JHS'),
         ('shs', 'Senior High School'),
@@ -33,8 +51,15 @@ class School(models.Model):
     country = models.CharField(max_length=100, default='Ghana')
     logo = models.ImageField(upload_to='schools/logos/', blank=True, null=True)
     website = models.URLField(blank=True)
+    curriculum = models.CharField(
+    max_length=20, choices=CURRICULUM_CHOICES, blank=True,
+    help_text=(
+    'Which curriculum this school follows. Chosen during setup '
+    'rather than at registration, so registration stays short.'
+        ),
+    )
     school_type = models.CharField(
-        max_length=20, choices=SCHOOL_TYPE_CHOICES, blank=True
+    max_length=20, choices=SCHOOL_TYPE_CHOICES, blank=True
     )
     expected_student_count = models.CharField(
         max_length=20, choices=STUDENT_COUNT_CHOICES, blank=True

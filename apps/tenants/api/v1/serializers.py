@@ -65,6 +65,7 @@ class SchoolSerializer(serializers.ModelSerializer):
             "country",
             "logo",
             "website",
+            "curriculum",
             "subscription_status",
             "is_active",
             "onboarding_complete",
@@ -95,6 +96,7 @@ class SchoolUpdateSerializer(serializers.ModelSerializer):
             "country",
             "logo",
             "website",
+            "curriculum",
         ]
 
 

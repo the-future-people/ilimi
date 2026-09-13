@@ -5,7 +5,11 @@ import sys
 
 import os
 if os.name == 'nt':
-    os.add_dll_directory(r'C:\msys64\ucrt64\bin')
+    # WeasyPrint needs GTK on Windows. Only add the path when it exists,
+    # so a machine without MSYS2 still runs everything that is not PDF.
+    _gtk = r'C:\msys64\ucrt64\bin'
+    if os.path.isdir(_gtk):
+        os.add_dll_directory(_gtk)
 
     
 def main():

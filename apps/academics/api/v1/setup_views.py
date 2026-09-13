@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
+from apps.tenants.models import School
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -72,17 +73,62 @@ class AcademicYearSetupView(SchoolScopedMixin, GenericAPIView):
     serializer_class = AcademicYearSetupSerializer
 
     def get(self, request, *args, **kwargs):
-        """Whether this school still needs setup — drives the Classes tab state."""
+        """
+        What this school still needs before it can run.
+
+        Three things block a school from functioning: a curriculum, an
+        academic year, and classes. Staff, assignments and students are
+        reported alongside so the portal can nudge, but a school adds
+        those at its own pace.
+        """
+        from apps.academics.models import ClassRoom, SubjectAssignment
+        from apps.teachers.models import StaffProfile
+        from apps.students.models import Student
+
         school = self.get_school()
         current = AcademicYear.objects.filter(
             school=school, is_current=True
         ).prefetch_related('terms').first()
 
+        has_year = current is not None
+        classrooms = ClassRoom.objects.filter(
+            school=school, is_active=True
+        ).count() if has_year else 0
+        staff = StaffProfile.objects.filter(school=school).count()
+        assignments = SubjectAssignment.objects.filter(
+            classroom__school=school
+        ).count()
+        students = Student.objects.filter(school=school, status='active').count()
+
+        # Only these three block a school from functioning. Staff,
+        # assignments and students are reported so the portal can nudge,
+        # but a school is free to add them at its own pace.
+        steps = [
+            {'key': 'curriculum', 'label': 'Confirm your curriculum',
+             'done': bool(school.curriculum), 'count': None,
+             'value': school.get_curriculum_display()},
+            {'key': 'academic_year', 'label': 'Set up the academic year',
+             'done': has_year, 'count': None,
+             'value': current.name if current else None},
+            {'key': 'classes', 'label': 'Create your classes',
+             'done': classrooms > 0, 'count': classrooms, 'value': None},
+        ]
+
+        progress = {
+            'staff': staff,
+            'assignments': assignments,
+            'students': students,
+        }
         return Response({
             'needs_setup': current is None,
             'academic_year': (
                 AcademicYearWithTermsSerializer(current).data if current else None
             ),
+            'steps': steps,
+            'progress': progress,
+            'curriculum': school.curriculum,
+            'curriculum_supported': school.curriculum in School.CURRICULUM_SUPPORTED,
+            'setup_complete': all(s['done'] for s in steps),
         })
 
     def post(self, request, *args, **kwargs):
